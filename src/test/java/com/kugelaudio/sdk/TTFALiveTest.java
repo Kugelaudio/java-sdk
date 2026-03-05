@@ -37,7 +37,7 @@ public class TTFALiveTest {
             System.out.println("── Verifying connectivity ──");
             List<Model> models = client.models().list();
             for (Model m : models) {
-                System.out.println("  Model: " + m.getId() + " — " + m.getName() + " (" + m.getParameters() + ")");
+                System.out.println("  Model: " + m.getId() + " — " + m.getName());
             }
             System.out.println();
 
