@@ -1,9 +1,9 @@
 <p align="center">
   <a href="https://kugelaudio.com">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://kugelaudio.com/logos/Logo%20Short%20Transparent%20DarkMode.svg">
-      <source media="(prefers-color-scheme: light)" srcset="https://kugelaudio.com/logos/Logo%20Short%20Transparent.svg">
-      <img alt="KugelAudio" src="https://kugelaudio.com/logos/Logo%20Short%20Transparent.svg" width="320">
+      <source media="(prefers-color-scheme: dark)" srcset=".github/logo-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset=".github/logo-light.svg">
+      <img alt="KugelAudio" src=".github/logo-light.svg" width="320">
     </picture>
   </a>
 </p>
