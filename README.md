@@ -1,28 +1,60 @@
+<p align="center">
+  <a href="https://kugelaudio.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://kugelaudio.com/logos/Logo%20Short%20Transparent%20DarkMode.svg">
+      <source media="(prefers-color-scheme: light)" srcset="https://kugelaudio.com/logos/Logo%20Short%20Transparent.svg">
+      <img alt="KugelAudio" src="https://kugelaudio.com/logos/Logo%20Short%20Transparent.svg" width="320">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <strong>Ultra-low latency text-to-speech for real-time applications</strong>
+</p>
+
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/com.kugelaudio/kugelaudio"><img src="https://img.shields.io/maven-central/v/com.kugelaudio/kugelaudio?style=flat-square&label=Maven%20Central" alt="Maven Central"></a>
+  <a href="https://github.com/Kugelaudio/java-sdk/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Kugelaudio/java-sdk?style=flat-square" alt="License"></a>
+  <a href="https://docs.kugelaudio.com/sdks/java"><img src="https://img.shields.io/badge/docs-kugelaudio.com-6366F1?style=flat-square" alt="Documentation"></a>
+</p>
+
+<p align="center">
+  <a href="https://docs.kugelaudio.com/sdks/java">Documentation</a> · <a href="https://kugelaudio.com/dashboard">Get API Key</a> · <a href="https://docs.kugelaudio.com">API Reference</a> · <a href="https://github.com/kugelaudio">GitHub</a>
+</p>
+
+---
+
 # KugelAudio Java SDK
 
-Official Java SDK for the KugelAudio Text-to-Speech API.
+The official Java SDK for the [KugelAudio](https://kugelaudio.com) Text-to-Speech API. Generate high-quality speech with ~39ms time-to-first-audio, WebSocket streaming, LLM integration, voice cloning, word timestamps, and multi-language support across 25 languages.
 
 ## Requirements
 
 - Java 17+
-- Maven 3.8+
+- Maven 3.8+ or Gradle 7+
 
 ## Installation
 
-Add to your `pom.xml`:
+**Maven:**
 
 ```xml
 <dependency>
   <groupId>com.kugelaudio</groupId>
   <artifactId>kugelaudio</artifactId>
-  <version>0.1.0</version>
+  <version>1.0.1</version>
 </dependency>
 ```
 
-Or with Gradle:
+**Gradle (Groovy):**
 
 ```groovy
-implementation 'com.kugelaudio:kugelaudio:0.1.0'
+implementation 'com.kugelaudio:kugelaudio:1.0.1'
+```
+
+**Gradle (Kotlin DSL):**
+
+```kotlin
+implementation("com.kugelaudio:kugelaudio:1.0.1")
 ```
 
 ## Quick Start
@@ -31,171 +63,99 @@ implementation 'com.kugelaudio:kugelaudio:0.1.0'
 import com.kugelaudio.sdk.*;
 import java.nio.file.Path;
 
-// Initialize the client
 KugelAudio client = new KugelAudio(
     KugelAudioOptions.builder("your_api_key").build()
 );
 
-// Generate speech
-AudioResponse response = client.tts().generate(
-    GenerateRequest.builder("Hello, world!").voiceId(123).build()
+AudioResponse audio = client.tts().generate(
+    GenerateRequest.builder("Hello, world!")
+        .modelId("kugel-1-turbo")
+        .language("en")
+        .build()
 );
 
-// Save to file
-response.saveWav(Path.of("output.wav"));
-
-// Clean up
+audio.saveWav(Path.of("output.wav"));
 client.close();
 ```
 
 ## Client Configuration
 
 ```java
-import com.kugelaudio.sdk.*;
-import java.time.Duration;
-
-// Simple setup - single URL handles everything
-KugelAudio client = new KugelAudio(
-    KugelAudioOptions.builder("your_api_key").build()
-);
-
-// Or with custom options
-KugelAudio client = new KugelAudio(
-    KugelAudioOptions.builder("your_api_key")
-        .apiUrl("https://api.kugelaudio.com")   // Optional: API base URL (default)
-        .timeout(Duration.ofSeconds(60))         // Optional: Request timeout (default: 60s)
-        .build()
-);
-
-// Or read API key from KUGELAUDIO_API_KEY environment variable
+// Read API key from KUGELAUDIO_API_KEY environment variable
 KugelAudio client = KugelAudio.fromEnv();
-```
 
-### Single URL Architecture
-
-The SDK uses a **single URL** for both REST API and WebSocket streaming. The TTS server provides both REST endpoints (`/v1/models`, `/v1/voices`) and WebSocket (`/ws/tts`) - no proxy needed, minimal latency.
-
-### Local Development
-
-For local development, point directly to your TTS server:
-
-```java
+// Or with full configuration
 KugelAudio client = new KugelAudio(
     KugelAudioOptions.builder("your_api_key")
-        .apiUrl("http://localhost:8000")   // TTS server handles everything
+        .apiUrl("https://api.kugelaudio.com")  // REST + WebSocket base URL
+        .timeout(Duration.ofSeconds(60))        // HTTP request timeout
+        .autoConnect(true)                      // Pre-connect WebSocket (default: true)
         .build()
 );
 ```
 
-Or if you have separate backend and TTS servers:
+The SDK uses a **single URL** for both REST API and WebSocket streaming. By default, the WebSocket connection is established in the background at construction time (`autoConnect = true`), so the ~300-500ms handshake is absorbed at startup rather than on the first request.
 
 ```java
-KugelAudio client = new KugelAudio(
-    KugelAudioOptions.builder("your_api_key")
-        .apiUrl("http://localhost:8001")   // Backend for REST API
-        .ttsUrl("http://localhost:8000")   // TTS server for WebSocket streaming
-        .build()
+// Block until connection is ready
+KugelAudio client = KugelAudio.createConnected(
+    KugelAudioOptions.builder("your_api_key").build()
 );
 ```
 
 ## Available Models
 
-| Model ID | Name | Parameters | Description |
-|----------|------|------------|-------------|
-| `kugel-1-turbo` | Kugel 1 Turbo | 1.5B | Fast, low-latency model for real-time applications |
-| `kugel-1` | Kugel 1 | 7B | Premium quality model for pre-recorded content |
-
-### List Available Models
+| Model ID | Name | Parameters | Best For |
+|----------|------|------------|----------|
+| `kugel-1-turbo` | Kugel 1 Turbo | 1.5B | Real-time applications (~39ms TTFA) |
+| `kugel-1` | Kugel 1 | 7B | Premium quality pre-recorded content |
 
 ```java
-List<Model> models = client.models().list();
-
-for (Model model : models) {
-    System.out.println(model.getId() + ": " + model.getName());
-    System.out.println("  Description: " + model.getDescription());
-    System.out.println("  Parameters: " + model.getParameters());
-    System.out.println("  Max Input: " + model.getMaxInputLength() + " characters");
-    System.out.println("  Sample Rate: " + model.getSampleRate() + " Hz");
+for (Model model : client.models().list()) {
+    System.out.printf("%s: %s (%s)%n", model.getId(), model.getName(), model.getParameters());
 }
 ```
 
-## Voices
+## Text-to-Speech
 
-### List Available Voices
-
-```java
-List<Voice> voices = client.voices().list();
-
-for (Voice voice : voices) {
-    System.out.println(voice.getId() + ": " + voice.getName());
-    System.out.println("  Category: " + voice.getCategory());
-}
-```
-
-### Get a Specific Voice
-
-```java
-VoiceDetail voice = client.voices().get(123);
-System.out.println("Voice: " + voice.getName());
-System.out.println("References: " + voice.getReferences().size());
-```
-
-## Text-to-Speech Generation
-
-### Basic Generation (Non-Streaming)
-
-Generate complete audio and receive it all at once:
+### Basic Generation
 
 ```java
 AudioResponse audio = client.tts().generate(
-    GenerateRequest.builder("Hello, this is a test of the KugelAudio TTS system.")
-        .modelId("kugel-1-turbo")   // "kugel-1-turbo" (fast) or "kugel-1" (quality)
-        .voiceId(123)               // Optional: specific voice ID
-        .cfgScale(2.0)              // Guidance scale (1.0-5.0)
-        .maxNewTokens(2048)         // Maximum tokens to generate
-        .sampleRate(24000)          // Output sample rate
-        .normalize(true)            // Enable text normalization
-        .language("en")             // Language for normalization
+    GenerateRequest.builder("Hello, this is a test of KugelAudio.")
+        .modelId("kugel-1-turbo")
+        .voiceId(123)
+        .cfgScale(2.0)
+        .sampleRate(24000)
+        .normalize(true)
+        .language("en")
         .build()
 );
 
-// Audio properties
-System.out.println("Duration: " + audio.getDurationMs() + "ms");
-System.out.println("Samples: " + audio.getSamples());
-System.out.println("Sample rate: " + audio.getSampleRate() + " Hz");
-System.out.println("Generation time: " + audio.getGenerationMs() + "ms");
-System.out.println("RTF: " + audio.getRtf());
+System.out.printf("Duration: %.0fms | Generated in: %.0fms | RTF: %.2f%n",
+    audio.getDurationMs(), audio.getGenerationMs(), audio.getRtf());
 
-// Save to WAV file
 audio.saveWav(Path.of("output.wav"));
-
-// Get raw PCM bytes
-byte[] pcmData = audio.getAudio();
-
-// Get WAV bytes (with header)
-byte[] wavBytes = audio.toWavBytes();
 ```
 
-### Streaming Audio Output
+### Streaming
 
-Receive audio chunks as they are generated for lower latency:
+Receive audio chunks as they are generated for lower time-to-first-audio:
 
 ```java
 client.tts().stream(
     GenerateRequest.builder("Hello, this is streaming audio.")
         .modelId("kugel-1-turbo")
+        .language("en")
         .build(),
     new StreamCallbacks() {
         @Override
         public void onChunk(AudioChunk chunk) {
-            System.out.println("Chunk " + chunk.getIndex() + ": "
-                + chunk.getAudio().length + " bytes, "
-                + chunk.getSamples() + " samples");
+            playAudio(chunk.getAudio());
         }
 
         @Override
         public void onComplete(AudioResponse response) {
-            System.out.println("Total duration: " + response.getDurationMs() + "ms");
             response.saveWav(Path.of("output.wav"));
         }
 
@@ -207,79 +167,35 @@ client.tts().stream(
 );
 ```
 
-### Connection Pooling
+### Word Timestamps
 
-Pre-establish the WebSocket connection for faster first request:
-
-```java
-// Option 1: Pre-connect during client creation
-KugelAudio client = KugelAudio.createConnected(
-    KugelAudioOptions.builder("your_api_key").build()
-);
-
-// Option 2: Explicitly connect later
-client.connect();
-
-// Check connection status
-boolean connected = client.isConnected();
-```
-
-## Text Normalization
-
-Text normalization converts numbers, dates, times, and other non-verbal text into spoken words. For example:
-- "I have 3 apples" -> "I have three apples"
-- "The meeting is at 2:30 PM" -> "The meeting is at two thirty PM"
-- "$50.99" -> "fifty dollars and ninety-nine cents"
-
-### Usage
+Get word-level time alignments for subtitles, lip-sync, or barge-in handling:
 
 ```java
-// With explicit language (recommended - fastest)
 AudioResponse audio = client.tts().generate(
-    GenerateRequest.builder("I bought 3 items for $50.99 on 01/15/2024.")
-        .normalize(true)
-        .language("en")   // Specify language for best performance
+    GenerateRequest.builder("Hello, how are you today?")
+        .modelId("kugel-1-turbo")
+        .language("en")
+        .wordTimestamps(true)
         .build()
 );
 
-// With auto-detection (adds ~150ms latency)
-AudioResponse audio = client.tts().generate(
-    GenerateRequest.builder("Ich habe 3 Artikel fur 50,99 Euro gekauft.")
-        .normalize(true)
-        // language not specified - will auto-detect
-        .build()
-);
+for (WordTimestamp ts : audio.getWordTimestamps()) {
+    System.out.printf("%s: %dms - %dms (score: %.2f)%n",
+        ts.getWord(), ts.getStartMs(), ts.getEndMs(), ts.getScore());
+}
 ```
 
-### Supported Languages
+## LLM Integration
 
-| Code | Language | Code | Language |
-|------|----------|------|----------|
-| `de` | German | `nl` | Dutch |
-| `en` | English | `pl` | Polish |
-| `fr` | French | `sv` | Swedish |
-| `es` | Spanish | `da` | Danish |
-| `it` | Italian | `no` | Norwegian |
-| `pt` | Portuguese | `fi` | Finnish |
-| `cs` | Czech | `hu` | Hungarian |
-| `ro` | Romanian | `el` | Greek |
-| `uk` | Ukrainian | `bg` | Bulgarian |
-| `tr` | Turkish | `vi` | Vietnamese |
-| `ar` | Arabic | `hi` | Hindi |
-| `zh` | Chinese | `ja` | Japanese |
-| `ko` | Korean | | |
-
-> **Latency Warning**: Using `normalize(true)` without specifying `language` adds approximately **150ms latency** for language auto-detection. For best performance in latency-sensitive applications, always specify the `language` parameter.
-
-## LLM Integration: Streaming Text Input
-
-For real-time TTS when streaming text from an LLM (like GPT-4, Claude, etc.), use a `StreamingSession`:
+Stream text tokens from an LLM directly into a `StreamingSession` for real-time text-to-speech:
 
 ```java
 StreamConfig config = StreamConfig.builder()
     .voiceId(123)
-    .cfgScale(2.0)
-    .flushTimeoutMs(500)   // Auto-flush after 500ms of no input
+    .modelId("kugel-1-turbo")
+    .language("en")
+    .flushTimeoutMs(500)
     .build();
 
 try (StreamingSession session = client.streamingSession(config, new StreamCallbacks() {
@@ -288,156 +204,157 @@ try (StreamingSession session = client.streamingSession(config, new StreamCallba
         playAudio(chunk.getAudio());
     }
 })) {
-    // Simulate LLM token stream
-    String[] llmTokens = {"Hello, ", "this ", "is ", "a ", "streamed ", "response."};
-
     for (String token : llmTokens) {
-        session.sendText(token);
+        session.send(token);
     }
-
     session.flush();
 }
 ```
 
-## Multi-Context Streaming
+## Multi-Context Sessions
 
-For concurrent speakers (up to 5) over a single WebSocket connection:
+Generate audio for multiple speakers concurrently over a single WebSocket connection:
 
 ```java
 MultiContextConfig config = MultiContextConfig.builder()
+    .language("en")
     .sampleRate(24000)
-    .wordTimestamps(true)
     .build();
 
-MultiContextCallbacks callbacks = new MultiContextCallbacks() {
-    @Override
-    public void onChunk(String contextId, AudioChunk chunk) {
-        System.out.println("[" + contextId + "] chunk: " + chunk.getAudio().length + " bytes");
-    }
-
-    @Override
-    public void onContextComplete(String contextId) {
-        System.out.println("[" + contextId + "] done");
-    }
-};
-
 try (MultiContextSession session = client.multiContextSession(config)) {
-    session.connect(callbacks);
+    session.connect(new MultiContextCallbacks() {
+        @Override
+        public void onChunk(String contextId, AudioChunk chunk) {
+            playAudio(contextId, chunk.getAudio());
+        }
 
-    // Create two independent contexts
-    session.createContext("speaker-1", CreateContextOptions.builder()
-        .voiceId(101).modelId("kugel-1-turbo").build());
-    session.createContext("speaker-2", CreateContextOptions.builder()
-        .voiceId(202).modelId("kugel-1-turbo").build());
+        @Override
+        public void onContextComplete(String contextId) {
+            System.out.println("[" + contextId + "] done");
+        }
+    });
 
-    // Send text independently
+    session.createContext("speaker-1", CreateContextOptions.builder().voiceId(101).build());
+    session.createContext("speaker-2", CreateContextOptions.builder().voiceId(202).build());
+
     session.send("speaker-1", "Hello from speaker one.");
     session.send("speaker-2", "And hello from speaker two.");
 
     session.flush("speaker-1");
     session.flush("speaker-2");
-    session.closeContext("speaker-1");
-    session.closeContext("speaker-2");
 }
 ```
+
+## Voices
+
+```java
+// List voices
+List<Voice> voices = client.voices().list();
+
+// Filter by language
+List<Voice> germanVoices = client.voices().list("de", true, 10);
+
+// Get voice details
+VoiceDetail voice = client.voices().get(123);
+
+// Create a custom voice (voice cloning)
+VoiceDetail custom = client.voices().create(
+    "My Voice", "female", "en",
+    List.of(Path.of("reference1.wav"), Path.of("reference2.wav"))
+);
+
+// Manage references
+client.voices().addReference(123, Path.of("new_ref.wav"), "Transcript text.");
+client.voices().deleteReference(123, 456);
+
+// Publish a voice for public use
+client.voices().publish(123);
+```
+
+## Text Normalization
+
+Text normalization converts numbers, dates, and symbols into spoken words. Supports 25 languages.
+
+```java
+AudioResponse audio = client.tts().generate(
+    GenerateRequest.builder("I bought 3 items for $50.99 on 01/15/2024.")
+        .normalize(true)
+        .language("en")
+        .build()
+);
+```
+
+Use `<spell>` tags to spell out text letter by letter (emails, codes, acronyms):
+
+```java
+AudioResponse audio = client.tts().generate(
+    GenerateRequest.builder("Contact me at <spell>kajo@kugelaudio.com</spell>")
+        .normalize(true)
+        .language("en")
+        .build()
+);
+```
+
+> **Tip:** Always specify `.language()` for best performance. Omitting it triggers auto-detection which may produce incorrect normalizations for short texts.
+
+### Supported Languages
+
+| Code | Language | Code | Language | Code | Language |
+|------|----------|------|----------|------|----------|
+| `de` | German | `nl` | Dutch | `ar` | Arabic |
+| `en` | English | `pl` | Polish | `hi` | Hindi |
+| `fr` | French | `sv` | Swedish | `zh` | Chinese |
+| `es` | Spanish | `da` | Danish | `ja` | Japanese |
+| `it` | Italian | `no` | Norwegian | `ko` | Korean |
+| `pt` | Portuguese | `fi` | Finnish | `el` | Greek |
+| `cs` | Czech | `hu` | Hungarian | `bg` | Bulgarian |
+| `ro` | Romanian | `uk` | Ukrainian | `vi` | Vietnamese |
+| `tr` | Turkish | | | | |
 
 ## Error Handling
 
 ```java
-import com.kugelaudio.sdk.*;
-
 try {
     AudioResponse audio = client.tts().generate(
-        GenerateRequest.builder("Hello!").build()
+        GenerateRequest.builder("Hello!").language("en").build()
     );
 } catch (AuthenticationException e) {
-    System.err.println("Invalid API key");
+    // Invalid API key
 } catch (RateLimitException e) {
-    System.err.println("Rate limit exceeded, please wait");
+    // Rate limit exceeded
 } catch (InsufficientCreditsException e) {
-    System.err.println("Not enough credits, please top up");
+    // Not enough credits
 } catch (ValidationException e) {
-    System.err.println("Invalid request: " + e.getMessage());
+    // Invalid request parameters
 } catch (ConnectionException e) {
-    System.err.println("Failed to connect to server");
+    // Network / WebSocket failure
 } catch (KugelAudioException e) {
-    System.err.println("API error: " + e.getMessage());
+    // Other API errors
 }
 ```
 
 ## Audio Utilities
 
-### WAV Export
-
 ```java
-// Save AudioResponse to WAV
-audio.saveWav(Path.of("output.wav"));
+import com.kugelaudio.sdk.AudioFormats;
 
-// Get WAV bytes in memory
-byte[] wavBytes = audio.toWavBytes();
+// Write PCM16 to WAV
+AudioFormats.writePcm16Wav(Path.of("out.wav"), pcmBytes, 24000, (short) 1);
+
+// Duration in milliseconds
+int durationMs = AudioFormats.durationMs(pcmBytes, 24000, 16, 1);
+
+// PCM16 <-> float32
+float[] floats = AudioFormats.pcm16ToFloat32(pcmBytes);
+
+// PCM16 <-> μ-law (telephony / Twilio)
+byte[] ulaw = AudioFormats.pcm16ToUlaw(pcmBytes);
+byte[] pcm = AudioFormats.ulawToPcm16(ulawBytes);
 ```
 
-### PCM16 to Float32
+## Documentation
 
-```java
-// Convert raw PCM16 bytes to float samples
-float[] floatData = AudioFormats.pcm16ToFloat32(audio.getAudio());
-```
-
-### Audio Duration
-
-```java
-// Calculate duration from PCM16 bytes
-double durationMs = AudioFormats.durationMs(pcmBytes, 24000);
-```
-
-## Complete Example
-
-```java
-import com.kugelaudio.sdk.*;
-import java.nio.file.Path;
-
-public class Example {
-    public static void main(String[] args) {
-        // Initialize client
-        KugelAudio client = new KugelAudio(
-            KugelAudioOptions.builder("your_api_key").build()
-        );
-
-        // List available models
-        System.out.println("Available Models:");
-        for (Model model : client.models().list()) {
-            System.out.println("  - " + model.getId() + ": "
-                + model.getName() + " (" + model.getParameters() + ")");
-        }
-
-        // List available voices
-        System.out.println("\nAvailable Voices:");
-        for (Voice voice : client.voices().list()) {
-            System.out.println("  - " + voice.getId() + ": " + voice.getName());
-        }
-
-        // Generate audio
-        System.out.println("\nGenerating audio...");
-        AudioResponse audio = client.tts().generate(
-            GenerateRequest.builder(
-                "Welcome to KugelAudio. This is an example of high-quality TTS."
-            ).modelId("kugel-1-turbo").build()
-        );
-
-        System.out.println("Generated " + audio.getDurationMs() + "ms of audio in "
-            + audio.getGenerationMs() + "ms");
-        System.out.println("Real-time factor: " + audio.getRtf() + "x");
-
-        // Save to file
-        audio.saveWav(Path.of("example.wav"));
-        System.out.println("Saved to example.wav");
-
-        // Clean up
-        client.close();
-    }
-}
-```
+For the full API reference, guides, and integration examples visit **[docs.kugelaudio.com](https://docs.kugelaudio.com/sdks/java)**.
 
 ## Acknowledgments
 
@@ -445,4 +362,4 @@ Kudos to **Schtief** for providing the first version of this SDK!
 
 ## License
 
-MIT
+[MIT](LICENSE)
