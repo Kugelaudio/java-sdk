@@ -105,14 +105,14 @@ KugelAudio client = KugelAudio.createConnected(
 
 ## Available Models
 
-| Model ID | Name | Parameters | Best For |
-|----------|------|------------|----------|
-| `kugel-1-turbo` | Kugel 1 Turbo | 1.5B | Real-time applications (~39ms TTFA) |
-| `kugel-1` | Kugel 1 | 7B | Premium quality pre-recorded content |
+| Model ID | Name | Best For |
+|----------|------|----------|
+| `kugel-1-turbo` | Kugel 1 Turbo | Real-time applications (~39ms TTFA) |
+| `kugel-1` | Kugel 1 | Premium quality pre-recorded content |
 
 ```java
 for (Model model : client.models().list()) {
-    System.out.printf("%s: %s (%s)%n", model.getId(), model.getName(), model.getParameters());
+    System.out.printf("%s: %s%n", model.getId(), model.getName());
 }
 ```
 
