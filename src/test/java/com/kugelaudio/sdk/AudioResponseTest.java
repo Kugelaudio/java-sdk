@@ -14,23 +14,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class AudioResponseTest {
 
     @Test
-    void builderCreatesResponse() {
-        byte[] audio = new byte[4800];
+    void carriesPerRequestUsage() {
+        SessionUsage usage = new SessionUsage(5.4, 0.49, "eur", 12, "kugel-3");
         AudioResponse response = AudioResponse.builder()
-                .audio(audio)
-                .sampleRate(24000)
-                .totalSamples(2400)
-                .durationMs(100.0)
-                .generationMs(50.0)
-                .rtf(0.5)
+                .audio(new byte[2])
+                .usage(usage)
                 .build();
 
-        assertArrayEquals(audio, response.getAudio());
-        assertEquals(24000, response.getSampleRate());
-        assertEquals(2400, response.getTotalSamples());
-        assertEquals(100.0, response.getDurationMs());
-        assertEquals(50.0, response.getGenerationMs());
-        assertEquals(0.5, response.getRtf());
+        assertNotNull(response.getUsage());
+        assertEquals(5.4, response.getUsage().getAudioSeconds());
+        assertEquals(0.49, response.getUsage().getCostCents());
+        assertTrue(response.getUsage().isCostAvailable());
     }
 
     @Test
@@ -82,5 +76,19 @@ class AudioResponseTest {
         assertEquals(1, response.getWordTimestamps().size());
         assertThrows(UnsupportedOperationException.class, () ->
                 response.getWordTimestamps().add(new WordTimestamp("x", 0, 0, 0, 0, 0)));
+    }
+
+    @Test
+    void pcmHelpersRejectNonPcmAudio() {
+        AudioResponse response = AudioResponse.builder()
+                .audio(new byte[] {(byte) 0xD5})
+                .encoding("alaw")
+                .sampleRate(8000)
+                .totalSamples(1)
+                .build();
+
+        assertEquals("alaw", response.getEncoding());
+        assertThrows(IllegalStateException.class, response::toFloat32);
+        assertThrows(IllegalStateException.class, response::toWavBytes);
     }
 }

@@ -25,11 +25,13 @@ public class TTFADiagnosticBench {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://api.kugelaudio.com";
+    private static final String MODEL_ID = "kugel-3";
+    private static final int VOICE_ID = 1071;
 
     public static void main(String[] args) throws Exception {
         String apiKey = args.length > 0 ? args[0] : System.getenv("API_KEY");
         if (apiKey == null || apiKey.isBlank()) {
-            System.err.println("Usage: TTFADiagnosticBench <api_key> [api_url]   (or set API_KEY / API_URL env)");
+            System.err.println("Usage: TTFADiagnosticBench <api_key> [api_url]   (or set API_KEY / API_URL env; API_URL defaults to " + BASE_URL + ")");
             System.exit(1);
         }
         String apiUrl = args.length > 1 ? args[1] : System.getenv("API_URL");
@@ -40,7 +42,8 @@ public class TTFADiagnosticBench {
 
         Locale.setDefault(Locale.US);
         System.out.println("=== KugelAudio TTFA Diagnostic ===");
-        System.out.println("SDK: com.kugelaudio:kugelaudio:1.0.1 (Maven Central)");
+        System.out.println("SDK: com.kugelaudio:kugelaudio:" + System.getProperty("kugelaudio.version", "(see benchmark/pom.xml)"));
+        System.out.println("Server: " + apiUrl);
         System.out.println();
 
         // ── 1. Fresh connection breakdown ──────────────────────────────────
@@ -57,11 +60,11 @@ public class TTFADiagnosticBench {
 
         // ── 3. SDK connection pooling ──────────────────────────────────────
         System.out.println("\n── 3. SDK connection pooling (5 requests) ──");
-        sdkPoolingTest(apiKey);
+        sdkPoolingTest(apiKey, apiUrl);
 
         // ── 4. SDK auto-connect (background warm-up) ──────────────────────
         System.out.println("\n── 4. SDK auto-connect (500 ms warm-up then 5 requests) ──");
-        sdkAutoConnectTest(apiKey);
+        sdkAutoConnectTest(apiKey, apiUrl);
 
         System.out.println("\n=== Done ===");
     }
@@ -109,7 +112,8 @@ public class TTFADiagnosticBench {
 
         ObjectNode payload = MAPPER.createObjectNode();
         payload.put("text", text);
-        payload.put("model_id", "kugel-1-turbo");
+        payload.put("model_id", MODEL_ID);
+        payload.put("voice_id", VOICE_ID);
         payload.put("language", "en");
         ws.sendText(MAPPER.writeValueAsString(payload), true).join();
         long afterSend = System.nanoTime();
@@ -166,7 +170,8 @@ public class TTFADiagnosticBench {
             firstChunk.set(0);
             ObjectNode payload = MAPPER.createObjectNode();
             payload.put("text", texts[i]);
-            payload.put("model_id", "kugel-1-turbo");
+            payload.put("model_id", MODEL_ID);
+            payload.put("voice_id", VOICE_ID);
             payload.put("language", "en");
             long sendStart = System.nanoTime();
             ws.sendText(MAPPER.writeValueAsString(payload), true).join();
@@ -178,8 +183,8 @@ public class TTFADiagnosticBench {
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    private static void sdkPoolingTest(String apiKey) throws Exception {
-        KugelAudio client = new KugelAudio(KugelAudioOptions.builder(apiKey).apiUrl(BASE_URL).build());
+    private static void sdkPoolingTest(String apiKey, String apiUrl) throws Exception {
+        KugelAudio client = new KugelAudio(KugelAudioOptions.builder(apiKey).apiUrl(apiUrl).build());
         String[] texts = {
                 "Hello, this is a test.",
                 "The quick brown fox jumps.",
@@ -191,7 +196,7 @@ public class TTFADiagnosticBench {
             long t0 = System.nanoTime();
             AtomicLong first = new AtomicLong();
             client.tts().stream(
-                    GenerateRequest.builder(texts[i]).modelId("kugel-1-turbo").language("en").build(),
+                    GenerateRequest.builder(texts[i]).modelId(MODEL_ID).voiceId(VOICE_ID).language("en").build(),
                     new StreamCallbacks() {
                         @Override public void onChunk(AudioChunk chunk) { first.compareAndSet(0, System.nanoTime()); }
                     },
@@ -205,9 +210,9 @@ public class TTFADiagnosticBench {
         client.close();
     }
 
-    private static void sdkAutoConnectTest(String apiKey) throws Exception {
+    private static void sdkAutoConnectTest(String apiKey, String apiUrl) throws Exception {
         long createStart = System.nanoTime();
-        KugelAudio client = new KugelAudio(KugelAudioOptions.builder(apiKey).apiUrl(BASE_URL).build());
+        KugelAudio client = new KugelAudio(KugelAudioOptions.builder(apiKey).apiUrl(apiUrl).build());
         double createMs = (System.nanoTime() - createStart) / 1e6;
         System.out.printf("  Client created in: %.1f ms (background connect started)%n", createMs);
         Thread.sleep(500);
@@ -224,7 +229,7 @@ public class TTFADiagnosticBench {
             long ts = System.nanoTime();
             AtomicLong first = new AtomicLong();
             client.tts().stream(
-                    GenerateRequest.builder(texts[i]).modelId("kugel-1-turbo").language("en").build(),
+                    GenerateRequest.builder(texts[i]).modelId(MODEL_ID).voiceId(VOICE_ID).language("en").build(),
                     new StreamCallbacks() {
                         @Override public void onChunk(AudioChunk chunk) { first.compareAndSet(0, System.nanoTime()); }
                     },

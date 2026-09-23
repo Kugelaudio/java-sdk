@@ -29,16 +29,42 @@ public final class KugelAudioOptions {
     private final Duration timeout;
     private final boolean autoConnect;
     private final Duration keepalivePingInterval;
+    private final Boolean telemetry;
+
+    private static final String DEFAULT_API_URL = "https://api.kugelaudio.com";
+    private static final String[] REGION_PREFIXES = {"eu-", "us-", "global-"};
 
     private KugelAudioOptions(Builder builder) {
-        this.apiKey = Objects.requireNonNull(builder.apiKey, "apiKey is required");
+        Objects.requireNonNull(builder.apiKey, "apiKey is required");
+
+        // Strip region prefix from API key
+        String key = builder.apiKey;
+        Region detectedRegion = null;
+        for (String prefix : REGION_PREFIXES) {
+            if (key.startsWith(prefix)) {
+                detectedRegion = Region.valueOf(prefix.substring(0, prefix.length() - 1).toUpperCase());
+                key = key.substring(prefix.length());
+                break;
+            }
+        }
+        this.apiKey = key;
+
         this.authMode = builder.authMode;
         this.orgId = builder.orgId;
-        this.apiUrl = builder.apiUrl;
+
+        // Resolve API URL: explicit apiUrl > explicit region > key prefix > default.
+        if (builder.apiUrlSet) {
+            this.apiUrl = builder.apiUrl;
+        } else {
+            Region effectiveRegion = builder.region != null ? builder.region : detectedRegion;
+            this.apiUrl = effectiveRegion == Region.EU ? Region.EU.getUrl() : DEFAULT_API_URL;
+        }
+
         this.ttsUrl = builder.ttsUrl;
         this.timeout = builder.timeout;
         this.autoConnect = builder.autoConnect;
         this.keepalivePingInterval = builder.keepalivePingInterval;
+        this.telemetry = builder.telemetry;
     }
 
     public String getApiKey() { return apiKey; }
@@ -50,6 +76,14 @@ public final class KugelAudioOptions {
     public boolean isAutoConnect() { return autoConnect; }
     /** Interval between WebSocket keepalive pings, or null to disable. */
     public Duration getKeepalivePingInterval() { return keepalivePingInterval; }
+
+    /**
+     * The explicit anonymous-diagnostics setting, or {@code null} when the
+     * caller did not set one (the default then depends on whether the API URL
+     * is a hosted KugelAudio endpoint). The environment variable
+     * {@code KUGELAUDIO_TELEMETRY} overrides this either way.
+     */
+    public Boolean getTelemetry() { return telemetry; }
 
     /**
      * Returns the effective base URL for REST API calls.
@@ -74,11 +108,14 @@ public final class KugelAudioOptions {
         private final String apiKey;
         private AuthMode authMode = AuthMode.API_KEY;
         private Integer orgId;
-        private String apiUrl = "https://api.kugelaudio.com";
+        private Region region;
+        private String apiUrl = DEFAULT_API_URL;
+        private boolean apiUrlSet = false;
         private String ttsUrl;
         private Duration timeout = Duration.ofSeconds(60);
         private boolean autoConnect = true;
         private Duration keepalivePingInterval = Duration.ofSeconds(20);
+        private Boolean telemetry;
 
         private Builder(String apiKey) {
             this.apiKey = apiKey;
@@ -93,13 +130,16 @@ public final class KugelAudioOptions {
         /** Organization ID for token-based auth. */
         public Builder orgId(int orgId) { this.orgId = orgId; return this; }
 
-        /** Base URL for REST API (default: https://api.kugelaudio.com). */
-        public Builder apiUrl(String apiUrl) { this.apiUrl = apiUrl; return this; }
+        /** Deployment region. Takes precedence over API-key prefix but not over {@link #apiUrl}. */
+        public Builder region(Region region) { this.region = region; return this; }
+
+        /** Base URL for REST API (default: https://api.kugelaudio.com). Takes precedence over {@link #region}. */
+        public Builder apiUrl(String apiUrl) { this.apiUrl = apiUrl; this.apiUrlSet = true; return this; }
 
         /** Separate URL for TTS WebSocket (defaults to apiUrl). */
         public Builder ttsUrl(String ttsUrl) { this.ttsUrl = ttsUrl; return this; }
 
-        /** HTTP request timeout (default: 60s). */
+        /** HTTP request and WebSocket acquisition timeout (default: 60s). */
         public Builder timeout(Duration timeout) { this.timeout = timeout; return this; }
 
         /**
@@ -114,6 +154,20 @@ public final class KugelAudioOptions {
          * prevent idle timeouts (default: 20s). Set to null to disable keepalive pings.
          */
         public Builder keepalivePingInterval(Duration interval) { this.keepalivePingInterval = interval; return this; }
+
+        /**
+         * Enables or disables anonymous client-error diagnostics.
+         *
+         * <p>Diagnostics report only the shape of a failure — event, stage,
+         * error class, elapsed time, chunk counts and the server's request id.
+         * Never your text, audio, API key, URLs or exception messages.
+         *
+         * <p>Unset by default, which means: on for hosted
+         * {@code *.kugelaudio.com} endpoints, off for custom / on-premise base
+         * URLs. The {@code KUGELAUDIO_TELEMETRY} environment variable
+         * overrides this setting in both directions.
+         */
+        public Builder telemetry(boolean enabled) { this.telemetry = enabled; return this; }
 
         public KugelAudioOptions build() {
             if (authMode == AuthMode.TOKEN && orgId == null) {

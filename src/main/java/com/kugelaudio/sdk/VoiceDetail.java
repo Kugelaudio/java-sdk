@@ -15,6 +15,7 @@ public final class VoiceDetail {
     private final String name;
     private final String sex;
     private final String language;
+    private final String quality;
     private final String sampleUrl;
     private final boolean isPublic;
     private final List<VoiceReference> references;
@@ -24,6 +25,7 @@ public final class VoiceDetail {
             @JsonProperty("name") String name,
             @JsonProperty("sex") String sex,
             @JsonProperty("language") String language,
+            @JsonProperty("quality") String quality,
             @JsonProperty("sample_url") String sampleUrl,
             @JsonProperty("is_public") boolean isPublic,
             @JsonProperty("references") List<VoiceReference> references) {
@@ -31,6 +33,7 @@ public final class VoiceDetail {
         this.name = name;
         this.sex = sex;
         this.language = language;
+        this.quality = quality;
         this.sampleUrl = sampleUrl;
         this.isPublic = isPublic;
         this.references = references != null ? List.copyOf(references) : List.of();
@@ -40,6 +43,7 @@ public final class VoiceDetail {
     public String getName() { return name; }
     public String getSex() { return sex; }
     public String getLanguage() { return language; }
+    public String getQuality() { return quality; }
     public String getSampleUrl() { return sampleUrl; }
     public boolean isPublic() { return isPublic; }
     public List<VoiceReference> getReferences() { return references; }

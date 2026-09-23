@@ -17,10 +17,9 @@ public interface MultiContextCallbacks {
     /** Called when generation starts for a context. */
     default void onGenerationStarted(String contextId) {}
 
-    /** Called when audio generation completes for a context (is_final). */
-    default void onContextComplete(String contextId) {}
-
-    /** Called when a context is closed. */
+    /** Called when a context is closed. This is the terminal signal for a
+     *  context — the server sends it only after every audio frame for the
+     *  context has been transmitted. */
     default void onContextClosed(String contextId) {}
 
     /** Called when the entire session is closed. */

@@ -3,12 +3,17 @@ package com.kugelaudio.sdk;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.kugelaudio.sdk.internal.Diagnostics;
+import com.kugelaudio.sdk.internal.Errors;
 import com.kugelaudio.sdk.internal.WsUrlBuilder;
+import com.kugelaudio.sdk.internal.WsConnector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.time.Duration;
+import java.util.concurrent.locks.ReentrantLock;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
@@ -52,21 +57,23 @@ public final class TTSResource {
 
     private final KugelAudioOptions options;
     private final HttpClient httpClient;
+    private final Diagnostics diagnostics;
+    private final WsConnector connector = new WsConnector();
 
     private volatile WebSocket pooledConnection;
     private volatile String pooledUrl;
     private volatile DispatchListener pooledDispatch;
-    private final Object poolLock = new Object();
+    private final ReentrantLock poolLock = new ReentrantLock();
 
     private final AtomicBoolean eagerConnectStarted = new AtomicBoolean(false);
-    private volatile CompletableFuture<PooledWs> eagerConnectFuture;
 
     private final ScheduledExecutorService keepaliveScheduler;
     private volatile ScheduledFuture<?> keepaliveFuture;
 
-    TTSResource(KugelAudioOptions options, HttpClient httpClient) {
+    TTSResource(KugelAudioOptions options, HttpClient httpClient, Diagnostics diagnostics) {
         this.options = options;
         this.httpClient = httpClient;
+        this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
         this.keepaliveScheduler = options.getKeepalivePingInterval() != null
                 ? Executors.newSingleThreadScheduledExecutor(r -> {
                     Thread t = new Thread(r, "kugelaudio-keepalive");
@@ -85,14 +92,12 @@ public final class TTSResource {
         if (!eagerConnectStarted.compareAndSet(false, true)) {
             return;
         }
-        eagerConnectFuture = CompletableFuture.supplyAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             try {
-                PooledWs pw = getOrCreatePooledNoPayload();
+                getOrCreatePooledNoPayload();
                 LOG.info("WebSocket connection pre-established (auto-connect)");
-                return pw;
             } catch (Exception e) {
                 LOG.warn("Auto-connect failed (will retry on first request): {}", e.getMessage());
-                return null;
             }
         });
     }
@@ -112,7 +117,7 @@ public final class TTSResource {
             public void onComplete(AudioResponse response) {
                 result.complete(response);
             }
-        }, true);
+        }, true, Diagnostics.OP_GENERATE);
 
         return result.getNow(AudioResponse.builder()
                 .sampleRate(request.getSampleRate() != null ? request.getSampleRate() : 24000)
@@ -134,46 +139,67 @@ public final class TTSResource {
      *                        (saves ~150-300ms per request by avoiding TLS + WS handshake).
      */
     public void stream(GenerateRequest request, StreamCallbacks callbacks, boolean reuseConnection) {
+        stream(request, callbacks, reuseConnection, Diagnostics.OP_STREAM);
+    }
+
+    private void stream(
+            GenerateRequest request,
+            StreamCallbacks callbacks,
+            boolean reuseConnection,
+            String operationName) {
         ObjectNode payload = buildPayload(request);
+        // Minted before connecting so a handshake failure still carries an
+        // operation id; the handler reports at most one event for it.
+        Diagnostics.Operation op = diagnostics
+                .startOperation(operationName, Diagnostics.TRANSPORT_WEBSOCKET)
+                .stage(Diagnostics.STAGE_HANDSHAKE);
 
         try {
             String payloadJson = MAPPER.writeValueAsString(payload);
             // Only embed payload in URL if it fits safely (nginx default header limit is 8KB)
             String initialMsg = payloadJson.length() <= MAX_INITIAL_MESSAGE_BYTES ? payloadJson : null;
-            RequestHandler handler = new RequestHandler(callbacks);
+            RequestHandler handler = new RequestHandler(callbacks, op);
 
             if (reuseConnection) {
-                awaitEagerConnectIfPending();
                 PooledWs pw = getOrCreatePooled(initialMsg);
                 pw.dispatch.setDelegate(handler);
+                op.stage(Diagnostics.STAGE_AWAITING_FIRST_AUDIO);
                 if (!pw.usedInitialMessage) {
                     pw.ws.sendText(payloadJson, true).join();
                 }
             } else {
                 String wsUrl = WsUrlBuilder.build(options, "/ws/tts", initialMsg);
-                StreamListener listener = new StreamListener(callbacks);
-                WebSocket ws = httpClient.newWebSocketBuilder()
-                        .buildAsync(URI.create(wsUrl), listener)
-                        .get(options.getTimeout().toSeconds(), TimeUnit.SECONDS);
+                StreamListener listener = new StreamListener(callbacks, op);
+                WebSocket ws = connector.connect(
+                        httpClient, URI.create(wsUrl), listener, options.getTimeout());
+                op.stage(Diagnostics.STAGE_AWAITING_FIRST_AUDIO);
                 if (initialMsg == null) {
                     ws.sendText(payloadJson, true).join();
                 }
                 handler = null;
                 listener.awaitCompletion(options.getTimeout());
+                op.success();
                 return;
             }
 
             handler.awaitCompletion(options.getTimeout());
+            op.success();
 
         } catch (KugelAudioException e) {
+            op.fail(e);
             callbacks.onError(e);
             throw e;
         } catch (TimeoutException e) {
             KugelAudioException wrapped = new ConnectionException("Request timed out");
+            op.fail(wrapped);
             callbacks.onError(wrapped);
             throw wrapped;
         } catch (Exception e) {
-            KugelAudioException wrapped = new ConnectionException("Streaming failed: " + e.getMessage(), e);
+            KugelAudioException typed = Errors.classifyWsHandshake(e);
+            KugelAudioException wrapped = typed != null
+                    ? typed
+                    : new ConnectionException("Streaming failed: " + e.getMessage(), e);
+            op.fail(wrapped);
             callbacks.onError(wrapped);
             throw wrapped;
         }
@@ -185,12 +211,18 @@ public final class TTSResource {
      * the ~150-300ms connection overhead from TTFA.
      */
     public void connect() {
+        Diagnostics.Operation op = diagnostics
+                .startOperation(Diagnostics.OP_STREAM, Diagnostics.TRANSPORT_WEBSOCKET)
+                .stage(Diagnostics.STAGE_CONNECTING);
         try {
-            awaitEagerConnectIfPending();
             getOrCreatePooledNoPayload();
             LOG.info("WebSocket connection pre-established");
+            op.success();
         } catch (Exception e) {
-            throw new ConnectionException("Failed to pre-connect: " + e.getMessage(), e);
+            ConnectionException wrapped =
+                    new ConnectionException("Failed to pre-connect: " + e.getMessage(), e);
+            op.fail(wrapped);
+            throw wrapped;
         }
     }
 
@@ -202,9 +234,9 @@ public final class TTSResource {
 
     /** Closes the pooled WebSocket connection and shuts down keepalive. */
     public void close() {
-        synchronized (poolLock) {
-            closePooledQuietly();
-        }
+        connector.close();
+        poolLock.lock();
+        try { closePooledQuietly(); } finally { poolLock.unlock(); }
         if (keepaliveScheduler != null) {
             keepaliveScheduler.shutdown();
         }
@@ -214,36 +246,8 @@ public final class TTSResource {
 
     private record PooledWs(WebSocket ws, DispatchListener dispatch, boolean usedInitialMessage) {}
 
-    private void awaitEagerConnectIfPending() {
-        CompletableFuture<PooledWs> future = eagerConnectFuture;
-        if (future != null && !future.isDone()) {
-            try {
-                future.get(options.getTimeout().toMillis(), TimeUnit.MILLISECONDS);
-            } catch (Exception e) {
-                LOG.debug("Eager connect future completed with error, will create fresh connection");
-            }
-        }
-    }
-
     private PooledWs getOrCreatePooledNoPayload() throws Exception {
-        synchronized (poolLock) {
-            String baseWsUrl = WsUrlBuilder.build(options, "/ws/tts");
-            WebSocket ws = pooledConnection;
-            if (ws != null && !ws.isInputClosed() && !ws.isOutputClosed() && baseWsUrl.equals(pooledUrl)) {
-                return new PooledWs(ws, pooledDispatch, false);
-            }
-            closePooledQuietly();
-
-            DispatchListener dispatch = new DispatchListener();
-            ws = httpClient.newWebSocketBuilder()
-                    .buildAsync(URI.create(baseWsUrl), dispatch)
-                    .get(options.getTimeout().toSeconds(), TimeUnit.SECONDS);
-            pooledConnection = ws;
-            pooledUrl = baseWsUrl;
-            pooledDispatch = dispatch;
-            startKeepalive(ws);
-            return new PooledWs(ws, dispatch, false);
-        }
+        return getOrCreatePooled(null);
     }
 
     /**
@@ -252,7 +256,11 @@ public final class TTSResource {
      * server can process it immediately (zero-RTT fast path).
      */
     private PooledWs getOrCreatePooled(String initialMsg) throws Exception {
-        synchronized (poolLock) {
+        long deadline = System.nanoTime() + options.getTimeout().toNanos();
+        if (!poolLock.tryLock(options.getTimeout().toNanos(), TimeUnit.NANOSECONDS)) {
+            throw new TimeoutException("Timed out waiting for the WebSocket connection lock");
+        }
+        try {
             String baseWsUrl = WsUrlBuilder.build(options, "/ws/tts");
             WebSocket ws = pooledConnection;
             if (ws != null && !ws.isInputClosed() && !ws.isOutputClosed() && baseWsUrl.equals(pooledUrl)) {
@@ -264,15 +272,15 @@ public final class TTSResource {
                     ? WsUrlBuilder.build(options, "/ws/tts", initialMsg)
                     : baseWsUrl;
             DispatchListener dispatch = new DispatchListener();
-            ws = httpClient.newWebSocketBuilder()
-                    .buildAsync(URI.create(connectUrl), dispatch)
-                    .get(options.getTimeout().toSeconds(), TimeUnit.SECONDS);
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0) throw new TimeoutException("Connection acquisition deadline expired");
+            ws = connector.connect(httpClient, URI.create(connectUrl), dispatch, Duration.ofNanos(remaining));
             pooledConnection = ws;
             pooledUrl = baseWsUrl;
             pooledDispatch = dispatch;
             startKeepalive(ws);
             return new PooledWs(ws, dispatch, initialMsg != null);
-        }
+        } finally { poolLock.unlock(); }
     }
 
     private void closePooledQuietly() {
@@ -321,56 +329,61 @@ public final class TTSResource {
         boolean normEnabled = normalize == null || normalize;
         if (language == null && normEnabled && !languageWarningLogged) {
             languageWarningLogged = true;
-            LOG.warn("No 'language' set with normalization enabled — the server will auto-detect " +
-                    "the language, adding ~60-150ms to TTFA. Set language (e.g., \"en\") via " +
-                    ".language(\"en\") for optimal latency.");
+            LOG.warn("No 'language' set with normalization enabled: the server normalizes in the " +
+                    "voice's primary language (English if it has none). Set .language(\"de\") " +
+                    "when the text is in another language.");
         }
     }
 
-    private ObjectNode buildPayload(GenerateRequest request) {
+    static ObjectNode buildPayload(GenerateRequest request) {
         warnIfNoLanguage(request.getLanguage(), request.getNormalize());
         ObjectNode payload = MAPPER.createObjectNode();
         payload.put("text", request.getText());
         if (request.getModelId() != null) payload.put("model_id", request.getModelId());
         if (request.getVoiceId() != null) payload.put("voice_id", request.getVoiceId());
         if (request.getCfgScale() != null) payload.put("cfg_scale", request.getCfgScale());
+        if (request.getTemperature() != null) payload.put("temperature", request.getTemperature());
         if (request.getMaxNewTokens() != null) payload.put("max_new_tokens", request.getMaxNewTokens());
         if (request.getSampleRate() != null) payload.put("sample_rate", request.getSampleRate());
+        if (request.getOutputFormat() != null) payload.put("output_format", request.getOutputFormat());
         if (request.getNormalize() != null) payload.put("normalize", request.getNormalize());
         if (request.getLanguage() != null) payload.put("language", request.getLanguage());
         if (request.getWordTimestamps() != null && request.getWordTimestamps()) {
             payload.put("word_timestamps", true);
         }
+        if (request.getSpeed() != null) payload.put("speed", request.getSpeed());
+        if (request.getProjectId() != null) payload.put("project_id", request.getProjectId());
+        // An empty list is meaningful (explicit opt-out) and must be sent;
+        // only null (use the project default) is omitted.
+        if (request.getDictionaryIds() != null) {
+            payload.putPOJO("dictionary_ids", request.getDictionaryIds());
+        }
         return payload;
     }
 
-    static KugelAudioException mapWsError(String errorMsg) {
-        String lower = errorMsg.toLowerCase(Locale.ROOT);
-        if (lower.contains("auth") || lower.contains("unauthorized")) {
-            return new AuthenticationException(errorMsg);
-        }
-        if (lower.contains("credit")) {
-            return new InsufficientCreditsException(errorMsg);
-        }
-        return new KugelAudioException(errorMsg);
+    static KugelAudioException mapWsError(JsonNode data) {
+        return Errors.classifyWsFrame(data);
     }
 
     static KugelAudioException mapWsCloseCode(int code, String reason) {
-        return switch (code) {
-            case 4001 -> new AuthenticationException("WebSocket authentication failed: " + reason);
-            case 4003 -> new InsufficientCreditsException("Insufficient credits: " + reason);
-            default -> new ConnectionException("WebSocket closed with code " + code + ": " + reason);
-        };
+        return Errors.classifyWsClose(code, reason);
+    }
+
+    /** A server error close code is a rejection; any other abnormal close is a dropped stream. */
+    private static void failOnClose(Diagnostics.Operation op, int code, KugelAudioException error) {
+        if (Errors.isErrorCloseCode(code)) op.rejected(error);
+        else op.fail(error);
     }
 
     // ── Message processing (shared by both listener types) ──────────────
 
-    private static void processMessage(String msg, RequestHandler handler) {
+    static void processMessage(String msg, RequestHandler handler) {
         try {
             JsonNode json = MAPPER.readTree(msg);
 
             if (json.has("error")) {
-                KugelAudioException ex = mapWsError(json.get("error").asText());
+                KugelAudioException ex = mapWsError(json);
+                handler.op.rejected(ex);
                 handler.callbacks.onError(ex);
                 handler.completion.completeExceptionally(ex);
                 return;
@@ -378,13 +391,16 @@ public final class TTSResource {
 
             if (json.has("audio") && !json.get("audio").isNull()) {
                 String audioBase64 = json.get("audio").asText();
+                String enc = json.path("enc").asText(AudioChunk.PCM_S16LE);
                 int idx = json.path("idx").asInt(handler.chunkCount);
                 int sr = json.path("sr").asInt(24000);
                 int samples = json.path("samples").asInt(0);
 
-                AudioChunk chunk = AudioChunk.fromServerMessage(audioBase64, idx, sr, samples);
+                AudioChunk chunk = AudioChunk.fromServerMessage(audioBase64, enc, idx, sr, samples);
                 handler.allAudio.writeBytes(chunk.getAudio());
                 handler.chunkCount++;
+                handler.op.chunk(chunk.getAudio() == null ? 0 : chunk.getAudio().length);
+                handler.responseBuilder.encoding(enc);
                 handler.responseBuilder.sampleRate(sr);
                 handler.callbacks.onChunk(chunk);
             }
@@ -411,6 +427,7 @@ public final class TTSResource {
                         .durationMs(json.path("dur_ms").asDouble(0))
                         .generationMs(json.path("gen_ms").asDouble(0))
                         .rtf(json.path("rtf").asDouble(0))
+                        .usage(SessionUsage.fromSessionClosed(json))
                         .audio(handler.allAudio.toByteArray());
                 handler.callbacks.onComplete(handler.responseBuilder.build());
                 handler.completion.complete(null);
@@ -432,14 +449,26 @@ public final class TTSResource {
         final CompletableFuture<Void> completion = new CompletableFuture<>();
         final ByteArrayOutputStream allAudio = new ByteArrayOutputStream();
         final AudioResponse.Builder responseBuilder = AudioResponse.builder();
+        /** Diagnostics handle for the enclosing operation; never null. */
+        final Diagnostics.Operation op;
         volatile int chunkCount;
 
-        RequestHandler(StreamCallbacks callbacks) {
+        RequestHandler(StreamCallbacks callbacks, Diagnostics.Operation op) {
             this.callbacks = callbacks;
+            this.op = op;
         }
 
         void awaitCompletion(java.time.Duration timeout) throws Exception {
-            completion.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            try {
+                completion.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (java.util.concurrent.ExecutionException e) {
+                // Unwrap the typed SDK exception set via completeExceptionally
+                // (error frame / close code) — otherwise callers see every
+                // server error degraded to ConnectionException("Streaming
+                // failed: ...") by the generic catch in stream().
+                if (e.getCause() instanceof KugelAudioException ke) throw ke;
+                throw e;
+            }
         }
     }
 
@@ -489,7 +518,10 @@ public final class TTSResource {
                     h.callbacks.onComplete(h.responseBuilder.build());
                     h.completion.complete(null);
                 } else {
-                    h.completion.completeExceptionally(mapWsCloseCode(statusCode, reason));
+                    KugelAudioException ex = mapWsCloseCode(statusCode, reason);
+                    h.op.wsCloseCode(statusCode);
+                    failOnClose(h.op, statusCode, ex);
+                    h.completion.completeExceptionally(ex);
                 }
             }
             return null;
@@ -501,6 +533,7 @@ public final class TTSResource {
             if (h != null) {
                 KugelAudioException ex = new ConnectionException(
                         "WebSocket error: " + error.getMessage(), error);
+                h.op.fail(ex);
                 h.callbacks.onError(ex);
                 if (!h.completion.isDone()) {
                     h.completion.completeExceptionally(ex);
@@ -513,12 +546,12 @@ public final class TTSResource {
      * Standalone listener used only for non-pooled (fresh connection) requests.
      * Owns its own {@link RequestHandler} and WebSocket lifecycle.
      */
-    private static final class StreamListener implements WebSocket.Listener {
+    static final class StreamListener implements WebSocket.Listener {
         private final RequestHandler handler;
         private final StringBuilder textBuffer = new StringBuilder();
 
-        StreamListener(StreamCallbacks callbacks) {
-            this.handler = new RequestHandler(callbacks);
+        StreamListener(StreamCallbacks callbacks, Diagnostics.Operation op) {
+            this.handler = new RequestHandler(callbacks, op);
         }
 
         @Override
@@ -548,7 +581,10 @@ public final class TTSResource {
                     handler.callbacks.onComplete(handler.responseBuilder.build());
                     handler.completion.complete(null);
                 } else {
-                    handler.completion.completeExceptionally(mapWsCloseCode(statusCode, reason));
+                    KugelAudioException ex = mapWsCloseCode(statusCode, reason);
+                    handler.op.wsCloseCode(statusCode);
+                    failOnClose(handler.op, statusCode, ex);
+                    handler.completion.completeExceptionally(ex);
                 }
             }
             return null;
@@ -558,6 +594,7 @@ public final class TTSResource {
         public void onError(WebSocket webSocket, Throwable error) {
             KugelAudioException ex = new ConnectionException(
                     "WebSocket error: " + error.getMessage(), error);
+            handler.op.fail(ex);
             handler.callbacks.onError(ex);
             if (!handler.completion.isDone()) {
                 handler.completion.completeExceptionally(ex);

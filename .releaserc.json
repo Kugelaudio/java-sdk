@@ -1,5 +1,6 @@
 {
   "extends": "semantic-release-monorepo",
+  "repositoryUrl": "https://github.com/Kugelaudio/KugelAudio.git",
   "branches": ["master"],
   "tagFormat": "java-sdk-v${version}",
   "plugins": [

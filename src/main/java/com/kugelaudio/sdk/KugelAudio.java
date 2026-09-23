@@ -1,5 +1,6 @@
 package com.kugelaudio.sdk;
 
+import com.kugelaudio.sdk.internal.Diagnostics;
 import com.kugelaudio.sdk.internal.HttpHelper;
 
 import java.net.http.HttpClient;
@@ -27,7 +28,7 @@ import java.time.Duration;
  *     GenerateRequest.builder("Hello!").voiceId(123).build(),
  *     new StreamCallbacks() {
  *         public void onChunk(AudioChunk chunk) {
- *             // Process raw PCM16 audio in real-time
+ *             // Process chunk.getAudio() according to chunk.getEncoding()
  *         }
  *     }
  * );
@@ -46,10 +47,13 @@ public final class KugelAudio implements AutoCloseable {
 
     private final KugelAudioOptions options;
     private final HttpClient httpClient;
+    private final Diagnostics diagnostics;
     private final HttpHelper httpHelper;
     private final ModelsResource models;
     private final VoicesResource voices;
+    private final DictionariesResource dictionaries;
     private final TTSResource tts;
+    private final ASRResource asr;
 
     /**
      * Creates a new KugelAudio client with the given options.
@@ -62,12 +66,19 @@ public final class KugelAudio implements AutoCloseable {
     public KugelAudio(KugelAudioOptions options) {
         this.options = options;
         this.httpClient = HttpClient.newBuilder()
+                // HTTP/1.1 like the Python and JS SDKs. The HTTP/2 default offers
+                // an h2c upgrade on plain http://, and uvicorn drops the body of
+                // such a request (on-prem and port-forwarded endpoints).
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(options.getTimeout())
                 .build();
-        this.httpHelper = new HttpHelper(httpClient, options);
+        this.diagnostics = Diagnostics.create(options);
+        this.httpHelper = new HttpHelper(httpClient, options, diagnostics);
         this.models = new ModelsResource(httpHelper);
         this.voices = new VoicesResource(httpHelper);
-        this.tts = new TTSResource(options, httpClient);
+        this.dictionaries = new DictionariesResource(httpHelper);
+        this.tts = new TTSResource(options, httpClient, diagnostics);
+        this.asr = new ASRResource(httpHelper);
 
         if (options.isAutoConnect()) {
             tts.startEagerConnect();
@@ -82,7 +93,11 @@ public final class KugelAudio implements AutoCloseable {
     public static KugelAudio fromEnv() {
         String apiKey = System.getenv("KUGELAUDIO_API_KEY");
         if (apiKey == null || apiKey.isBlank()) {
-            throw new KugelAudioException("KUGELAUDIO_API_KEY environment variable is not set");
+            throw new ValidationException(
+                    "KugelAudio API key is missing. Set the KUGELAUDIO_API_KEY "
+                            + "environment variable or build options with "
+                            + "KugelAudioOptions.builder(apiKey). "
+                            + "Get a key at https://app.kugelaudio.com/settings/api-keys.");
         }
         return new KugelAudio(KugelAudioOptions.builder(apiKey).build());
     }
@@ -105,8 +120,14 @@ public final class KugelAudio implements AutoCloseable {
     /** Access the Voices resource (CRUD, references, publishing). */
     public VoicesResource voices() { return voices; }
 
+    /** Access the Dictionaries resource (per-project custom word dictionaries). */
+    public DictionariesResource dictionaries() { return dictionaries; }
+
     /** Access the TTS resource (generate, stream, streaming sessions). */
     public TTSResource tts() { return tts; }
+
+    /** Access the speech-to-text resource. */
+    public ASRResource asr() { return asr; }
 
     /**
      * Pre-establishes the WebSocket connection for TTS.
@@ -125,21 +146,24 @@ public final class KugelAudio implements AutoCloseable {
      * Use this when text arrives token-by-token (e.g. from an LLM).
      */
     public StreamingSession streamingSession(StreamConfig config, StreamCallbacks callbacks) {
-        StreamingSession session = new StreamingSession(options, httpClient, config, callbacks);
+        StreamingSession session =
+                new StreamingSession(options, httpClient, config, callbacks, diagnostics);
         session.connect();
         return session;
     }
 
     /**
      * Creates a multi-context streaming session for concurrent speakers.
-     * Supports up to 5 independent audio contexts over a single WebSocket.
+     * Supports up to 20 independent audio contexts over a single WebSocket.
      */
     public MultiContextSession multiContextSession(MultiContextConfig config) {
-        return new MultiContextSession(options, httpClient, config);
+        return new MultiContextSession(options, httpClient, config, diagnostics);
     }
 
     @Override
     public void close() {
         tts.close();
+        // Best-effort telemetry flush with a bounded deadline; never throws.
+        diagnostics.close();
     }
 }

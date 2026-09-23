@@ -15,6 +15,7 @@ public final class Voice {
     private final String name;
     private final String sex;
     private final String language;
+    private final String quality;
     private final String sampleUrl;
     private final boolean isPublic;
 
@@ -23,12 +24,14 @@ public final class Voice {
             @JsonProperty("name") String name,
             @JsonProperty("sex") String sex,
             @JsonProperty("language") String language,
+            @JsonProperty("quality") String quality,
             @JsonProperty("sample_url") String sampleUrl,
             @JsonProperty("is_public") boolean isPublic) {
         this.id = id;
         this.name = name;
         this.sex = sex;
         this.language = language;
+        this.quality = quality;
         this.sampleUrl = sampleUrl;
         this.isPublic = isPublic;
     }
@@ -37,6 +40,7 @@ public final class Voice {
     public String getName() { return name; }
     public String getSex() { return sex; }
     public String getLanguage() { return language; }
+    public String getQuality() { return quality; }
     public String getSampleUrl() { return sampleUrl; }
     public boolean isPublic() { return isPublic; }
 

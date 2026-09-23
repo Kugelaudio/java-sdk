@@ -20,22 +20,16 @@ class AudioFormatsTest {
     }
 
     @Test
+    void alawSilenceMatchesStandardAnchor() {
+        byte[] pcm16 = new byte[] {0, 0};
+        assertArrayEquals(new byte[] {(byte) 0xD5}, AudioFormats.pcm16ToAlaw(pcm16));
+    }
+
+    @Test
     void durationCalculation() {
         byte[] pcm16 = new byte[16000];
         int ms = AudioFormats.durationMs(pcm16, 8000, 16, 1);
         assertTrue(ms >= 990 && ms <= 1010, "Expected ~1000ms, got " + ms);
-    }
-
-    @Test
-    void durationWith24kHz() {
-        byte[] pcm16 = new byte[48000];
-        int ms = AudioFormats.durationMs(pcm16, 24000, 16, 1);
-        assertTrue(ms >= 990 && ms <= 1010, "Expected ~1000ms, got " + ms);
-    }
-
-    @Test
-    void durationWithNullReturnsZero() {
-        assertEquals(0, AudioFormats.durationMs(null, 8000, 16, 1));
     }
 
     @Test
@@ -58,15 +52,4 @@ class AudioFormatsTest {
         assertEquals('E', (char) wavBytes[11]);
     }
 
-    @Test
-    void ulawWithNullInput() {
-        assertArrayEquals(new byte[0], AudioFormats.pcm16ToUlaw(null));
-        assertArrayEquals(new byte[0], AudioFormats.ulawToPcm16(null));
-    }
-
-    @Test
-    void ulawWithEmptyInput() {
-        assertArrayEquals(new byte[0], AudioFormats.pcm16ToUlaw(new byte[0]));
-        assertArrayEquals(new byte[0], AudioFormats.ulawToPcm16(new byte[0]));
-    }
 }

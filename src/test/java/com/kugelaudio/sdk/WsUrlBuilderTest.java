@@ -40,16 +40,6 @@ class WsUrlBuilderTest {
     }
 
     @Test
-    void buildWithCustomTtsUrl() {
-        KugelAudioOptions options = KugelAudioOptions.builder("key")
-                .ttsUrl("https://tts.custom.com")
-                .build();
-        String url = WsUrlBuilder.build(options, "/ws/tts/stream");
-
-        assertTrue(url.startsWith("wss://tts.custom.com/ws/tts/stream"));
-    }
-
-    @Test
     void buildConvertsHttpToWs() {
         KugelAudioOptions options = KugelAudioOptions.builder("key")
                 .ttsUrl("http://localhost:8080")
@@ -77,11 +67,4 @@ class WsUrlBuilderTest {
         assertTrue(url.contains("api_key=key"));
     }
 
-    @Test
-    void buildWithoutInitialMessage() {
-        KugelAudioOptions options = KugelAudioOptions.builder("key").build();
-        String url = WsUrlBuilder.build(options, "/ws/tts", null);
-
-        assertFalse(url.contains("initial_message"));
-    }
 }

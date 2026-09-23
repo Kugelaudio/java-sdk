@@ -8,7 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Audio format utilities: WAV export, PCM16/u-law conversion, duration calculation.
+ * Audio format utilities: WAV export, PCM16/G.711 conversion, duration calculation.
  */
 public final class AudioFormats {
 
@@ -80,6 +80,33 @@ public final class AudioFormats {
         return pcm16;
     }
 
+    /**
+     * Converts PCM16 (signed 16-bit little-endian) to a-law encoded audio.
+     */
+    public static byte[] pcm16ToAlaw(byte[] pcm16) {
+        if (pcm16 == null || pcm16.length < 2) return new byte[0];
+        byte[] alaw = new byte[pcm16.length / 2];
+        for (int i = 0, j = 0; j < alaw.length; i += 2, j++) {
+            short sample = (short) ((pcm16[i + 1] << 8) | (pcm16[i] & 0xFF));
+            alaw[j] = linearToAlaw(sample);
+        }
+        return alaw;
+    }
+
+    /**
+     * Converts a-law encoded audio to PCM16 (signed 16-bit little-endian).
+     */
+    public static byte[] alawToPcm16(byte[] alaw) {
+        if (alaw == null || alaw.length == 0) return new byte[0];
+        byte[] pcm16 = new byte[alaw.length * 2];
+        for (int i = 0, j = 0; i < alaw.length; i++, j += 2) {
+            short sample = alawToLinear(alaw[i]);
+            pcm16[j] = (byte) (sample & 0xFF);
+            pcm16[j + 1] = (byte) ((sample >>> 8) & 0xFF);
+        }
+        return pcm16;
+    }
+
     private static byte linearToUlaw(short sample) {
         final int BIAS = 0x84;
         final int CLIP = 32635;
@@ -104,5 +131,46 @@ public final class AudioFormats {
         sample -= 0x84;
         if (sign != 0) sample = -sample;
         return (short) sample;
+    }
+
+    private static byte linearToAlaw(short sample) {
+        final int[] SEG_END = {0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF};
+        int pcm = sample >> 3;
+        int mask = pcm >= 0 ? 0xD5 : 0x55;
+        int magnitude = pcm >= 0 ? pcm : -pcm - 1;
+
+        int segment = 0;
+        while (segment < SEG_END.length && magnitude > SEG_END[segment]) {
+            segment++;
+        }
+
+        int aval;
+        if (segment >= 8) {
+            aval = 0x7F;
+        } else {
+            int shift = segment < 2 ? 1 : segment;
+            int mantissa = (magnitude >> shift) & 0x0F;
+            aval = (segment << 4) | mantissa;
+        }
+
+        return (byte) ((aval ^ mask) & 0xFF);
+    }
+
+    private static short alawToLinear(byte alawByte) {
+        int a = (alawByte ^ 0x55) & 0xFF;
+        int segment = (a >> 4) & 0x07;
+        int quantization = a & 0x0F;
+        int sample = quantization << 4;
+
+        if (segment == 0) {
+            sample += 8;
+        } else {
+            sample += 0x108;
+            if (segment > 1) {
+                sample <<= segment - 1;
+            }
+        }
+
+        return (short) ((a & 0x80) != 0 ? sample : -sample);
     }
 }

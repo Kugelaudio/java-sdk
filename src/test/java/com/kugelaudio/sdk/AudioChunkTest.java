@@ -16,6 +16,7 @@ class AudioChunkTest {
         AudioChunk chunk = AudioChunk.fromServerMessage(base64, 0, 24000, 2);
 
         assertArrayEquals(pcm16, chunk.getAudio());
+        assertEquals(AudioChunk.PCM_S16LE, chunk.getEncoding());
         assertEquals(0, chunk.getIndex());
         assertEquals(24000, chunk.getSampleRate());
         assertEquals(2, chunk.getSamples());
@@ -34,13 +35,9 @@ class AudioChunkTest {
     }
 
     @Test
-    void toFloat32SilenceIsZero() {
-        byte[] pcm16 = {0x00, 0x00, 0x00, 0x00};
-        AudioChunk chunk = new AudioChunk(pcm16, 0, 24000, 2);
+    void toFloat32RejectsNonPcmAudio() {
+        AudioChunk chunk = new AudioChunk(new byte[] {(byte) 0xD5}, "alaw", 0, 8000, 1);
 
-        float[] floats = chunk.toFloat32();
-        assertEquals(2, floats.length);
-        assertEquals(0.0f, floats[0]);
-        assertEquals(0.0f, floats[1]);
+        assertThrows(IllegalStateException.class, chunk::toFloat32);
     }
 }

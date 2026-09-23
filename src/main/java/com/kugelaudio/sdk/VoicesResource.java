@@ -1,6 +1,7 @@
 package com.kugelaudio.sdk;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kugelaudio.sdk.internal.HttpHelper;
 
 import java.io.ByteArrayOutputStream;
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,12 +18,13 @@ import java.util.UUID;
  * Resource for managing voices (CRUD, references, publishing).
  *
  * <pre>{@code
- * List<Voice> voices = client.voices().list();
+ * VoiceListResponse response = client.voices().list();
  * VoiceDetail detail = client.voices().get(123);
  * }</pre>
  */
 public final class VoicesResource {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private final HttpHelper http;
 
     VoicesResource(HttpHelper http) {
@@ -29,18 +32,19 @@ public final class VoicesResource {
     }
 
     /** Lists voices with optional filters. */
-    public List<Voice> list() {
-        return list(null, null, null);
+    public VoiceListResponse list() {
+        return list(null, null, null, null);
     }
 
     /** Lists voices with optional filters. */
-    public List<Voice> list(String language, Boolean includePublic, Integer limit) {
+    public VoiceListResponse list(String language, Boolean includePublic, Integer limit, Integer offset) {
         StringBuilder path = new StringBuilder("v1/voices");
         String sep = "?";
         if (language != null) { path.append(sep).append("language=").append(language); sep = "&"; }
         if (includePublic != null) { path.append(sep).append("include_public=").append(includePublic); sep = "&"; }
-        if (limit != null) { path.append(sep).append("limit=").append(limit); }
-        return http.getListFromEnvelope(path.toString(), "voices", Voice.class);
+        if (limit != null) { path.append(sep).append("limit=").append(limit); sep = "&"; }
+        if (offset != null) { path.append(sep).append("offset=").append(offset); }
+        return http.get(path.toString(), VoiceListResponse.class);
     }
 
     /** Gets detailed voice information by ID. */
@@ -53,18 +57,22 @@ public final class VoicesResource {
      *
      * @param name     Voice name
      * @param sex      "male" or "female"
-     * @param language Language code (e.g. "en", "de")
+     * @param language Language code (e.g. "en", "de"), sent as the voice's only supported language;
+     *                 {@code null} leaves the server default ({@code ["en"]})
      * @param files    Reference audio file paths
      */
     public VoiceDetail create(String name, String sex, String language, List<Path> files) {
         String boundary = UUID.randomUUID().toString();
         try {
             ByteArrayOutputStream body = new ByteArrayOutputStream();
-            String metadata = "{\"name\":\"" + escapeJson(name) +
-                    "\",\"sex\":\"" + escapeJson(sex) +
-                    "\",\"language\":\"" + escapeJson(language) + "\"}";
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("name", name);
+            metadata.put("sex", sex);
+            if (language != null) {
+                metadata.put("supported_languages", List.of(language));
+            }
 
-            writeMultipartField(body, boundary, "metadata", null, "application/json", metadata.getBytes(StandardCharsets.UTF_8));
+            writeMultipartField(body, boundary, "metadata", null, "application/json", MAPPER.writeValueAsBytes(metadata));
 
             if (files != null) {
                 for (Path file : files) {
@@ -127,7 +135,10 @@ public final class VoicesResource {
         return http.post("v1/voices/" + voiceId + "/publish", null, VoiceDetail.class);
     }
 
-    /** Triggers server-side sample generation for a voice. */
+    /**
+     * Triggers server-side sample generation for a voice. Only {@link VoiceDetail#getSampleUrl()}
+     * is populated; the response carries no other voice fields.
+     */
     public VoiceDetail generateSample(int voiceId) {
         return http.post("v1/voices/" + voiceId + "/generate-sample", null, VoiceDetail.class);
     }
@@ -148,10 +159,5 @@ public final class VoicesResource {
         out.write(header.toString().getBytes(StandardCharsets.UTF_8));
         out.write(data);
         out.write("\r\n".getBytes(StandardCharsets.UTF_8));
-    }
-
-    private static String escapeJson(String value) {
-        if (value == null) return "";
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

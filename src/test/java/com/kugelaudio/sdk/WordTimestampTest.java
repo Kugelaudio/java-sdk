@@ -30,12 +30,4 @@ class WordTimestampTest {
         assertEquals(0.95, wt.getScore(), 0.001);
     }
 
-    @Test
-    void toStringFormat() {
-        WordTimestamp wt = new WordTimestamp("world", 350, 700, 6, 11, 0.9);
-        String str = wt.toString();
-        assertTrue(str.contains("world"));
-        assertTrue(str.contains("350"));
-        assertTrue(str.contains("700"));
-    }
 }

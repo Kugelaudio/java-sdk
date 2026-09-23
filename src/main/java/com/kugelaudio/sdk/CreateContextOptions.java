@@ -27,7 +27,13 @@ public final class CreateContextOptions {
         private Integer maxNewTokens;
 
         public Builder voiceId(int voiceId) { this.voiceId = voiceId; return this; }
-        public Builder cfgScale(double cfgScale) { this.cfgScale = cfgScale; return this; }
+        /**
+         * Classifier-free guidance scale. Clamped to [1.2, 2.5].
+         */
+        public Builder cfgScale(double cfgScale) {
+            this.cfgScale = CfgScale.clamp(cfgScale);
+            return this;
+        }
         public Builder maxNewTokens(int maxNewTokens) { this.maxNewTokens = maxNewTokens; return this; }
 
         public CreateContextOptions build() {

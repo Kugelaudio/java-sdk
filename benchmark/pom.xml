@@ -16,9 +16,10 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <kugelaudio.version>1.0.1</kugelaudio.version>
-        <jackson.version>2.18.3</jackson.version>
-        <slf4j.version>2.0.16</slf4j.version>
+        <!-- Keep equal to <version> in ../pom.xml -->
+        <kugelaudio.version>3.0.0</kugelaudio.version>
+        <jackson.version>2.21.2</jackson.version>
+        <slf4j.version>2.0.17</slf4j.version>
     </properties>
 
     <dependencies>
@@ -73,8 +74,12 @@
                 <version>3.5.0</version>
                 <configuration>
                     <mainClass>com.kugelaudio.bench.TTFABench</mainClass>
-                    <!-- API key passed via -Dexec.args or API_KEY env -->
+                    <!-- API key via API_KEY env or -Dexec.args; base URL via API_URL env or second arg -->
                     <systemProperties>
+                        <systemProperty>
+                            <key>kugelaudio.version</key>
+                            <value>${kugelaudio.version}</value>
+                        </systemProperty>
                         <systemProperty>
                             <key>org.slf4j.simpleLogger.defaultLogLevel</key>
                             <value>warn</value>

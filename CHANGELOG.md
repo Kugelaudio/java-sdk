@@ -1,3 +1,89 @@
+## [kugelaudio-java-sdk-v3.0.1](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v3.0.0...java-sdk-v3.0.1) (2026-09-22)
+
+## [kugelaudio-java-sdk-v3.0.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.5.0...java-sdk-v3.0.0) (2026-09-21)
+
+## [kugelaudio-java-sdk-v2.5.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.4.0...java-sdk-v2.5.0) (2026-09-07)
+
+## [kugelaudio-java-sdk-v2.4.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.3.0...java-sdk-v2.4.0) (2026-07-08)
+
+### Features
+
+* per-request dictionary selection (KUG-1094) ([#1361](https://github.com/Kugelaudio/KugelAudio/issues/1361)) ([3c28968](https://github.com/Kugelaudio/KugelAudio/commit/3c28968d32018bf3cafe1d312f32831668ea96b8))
+* update session settings per turn (KUG-1166) ([#1500](https://github.com/Kugelaudio/KugelAudio/issues/1500)) ([7521d35](https://github.com/Kugelaudio/KugelAudio/commit/7521d35d56925f2f76d6ac19f40bdd735680584c))
+
+### Bug Fixes
+
+* **js-sdk,java-sdk,ingress:** multi-turn conversations work end-to-end + live SDK e2e bench in CI (KUG-1233) ([#1363](https://github.com/Kugelaudio/KugelAudio/issues/1363)) ([c0ed2a9](https://github.com/Kugelaudio/KugelAudio/commit/c0ed2a9cf41025bac5c7182c1a281eb600d8dd36))
+
+## [kugelaudio-java-sdk-v2.3.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.2.0...java-sdk-v2.3.0) (2026-06-08)
+
+### Features
+
+* **ingress,python-sdk,js-sdk,java-sdk:** per-session usage over WebSocket ([#1346](https://github.com/Kugelaudio/KugelAudio/issues/1346)) ([2881881](https://github.com/Kugelaudio/KugelAudio/commit/28818816dca9c8d222391691d70f458c0eb28ed8))
+* **ingress:** output_format token + server-side G.711 (KUG-1190) ([#1345](https://github.com/Kugelaudio/KugelAudio/issues/1345)) ([3723291](https://github.com/Kugelaudio/KugelAudio/commit/372329196c4c91aa41fe2111783872874b6e895b))
+
+## [kugelaudio-java-sdk-v2.2.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.1.1...java-sdk-v2.2.0) (2026-06-06)
+
+### Features
+
+* **sdks:** default all SDKs to kugel-3 model ([#1323](https://github.com/Kugelaudio/KugelAudio/issues/1323)) ([c4de212](https://github.com/Kugelaudio/KugelAudio/commit/c4de212c91e16326a15dbee5622acacc83ed85bb))
+
+## [kugelaudio-java-sdk-v2.1.1](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.1.0...java-sdk-v2.1.1) (2026-06-04)
+
+### Bug Fixes
+
+* **python-sdk:** propagate ingress errors through SDK integrations ([#1313](https://github.com/Kugelaudio/KugelAudio/issues/1313)) ([3ae2e03](https://github.com/Kugelaudio/KugelAudio/commit/3ae2e03745b49cca0712c20d9a658c160f4b6f38))
+
+## [kugelaudio-java-sdk-v2.1.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.0.0...java-sdk-v2.1.0) (2026-05-29)
+
+### Features
+
+* streaming barge-in (cancelCurrent) across server + JS/Python/Java SDKs ([#1210](https://github.com/Kugelaudio/KugelAudio/issues/1210)) ([341e54f](https://github.com/Kugelaudio/KugelAudio/commit/341e54f169b4dd9242272b249fca30f005bfc3b8))
+
+## [kugelaudio-java-sdk-v2.0.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v1.0.1...java-sdk-v2.0.0) (2026-05-21)
+
+### ⚠ BREAKING CHANGES
+
+* **java-sdk:** voices().list() now returns a VoiceListResponse object
+instead of a List<Voice>. Access the voice list via .getVoices().
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+* **python-sdk,js-sdk,java-sdk:** voices.list() now returns a VoiceListResponse object
+instead of a plain list. Access the voice array via .voices.
+
+Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
+
+### Features
+
+* **ingress,sdks:** public API for custom word dictionaries (KUG-765) ([#875](https://github.com/Kugelaudio/KugelAudio/issues/875)) ([9988924](https://github.com/Kugelaudio/KugelAudio/commit/99889244997d1cb4dba9714e2633d84ace9852a3))
+* **java-sdk:** add pagination support to voices list ([4a807a2](https://github.com/Kugelaudio/KugelAudio/commit/4a807a2da4e2c48ee8ba4675af7271ffef73e73f))
+* multi-region routing for all SDKs ([#227](https://github.com/Kugelaudio/KugelAudio/issues/227)) ([097efe2](https://github.com/Kugelaudio/KugelAudio/commit/097efe24ffdeb8814d066fc78b3b570ea1626e0f))
+* **python-sdk,js-sdk,java-sdk:** add pagination support to voices list ([ad358ac](https://github.com/Kugelaudio/KugelAudio/commit/ad358ac51b2b2ada486d57f3ecce55e592f037c8))
+* **sdk:** add multi-region to LiveKit/Pipecat plugins, tests, and docs ([#239](https://github.com/Kugelaudio/KugelAudio/issues/239)) ([a45d000](https://github.com/Kugelaudio/KugelAudio/commit/a45d000876af4bfbba635af1a9678689c19293d0))
+* **sdk:** add NotFoundError for unknown resources (KUG-423) ([#872](https://github.com/Kugelaudio/KugelAudio/issues/872)) ([d613b0f](https://github.com/Kugelaudio/KugelAudio/commit/d613b0fa1314c9e9e1f2af924652d94014626ddc))
+* **sdks:** unify error classification with actionable messages ([#315](https://github.com/Kugelaudio/KugelAudio/issues/315)) ([ffdcc05](https://github.com/Kugelaudio/KugelAudio/commit/ffdcc054c9e3899230db5148e74228e3c7d94f79))
+* **tts,web,python-sdk,java-sdk,js-sdk:** temperature parameter across stack + ISO 639-1 dictionary lookup ([#273](https://github.com/Kugelaudio/KugelAudio/issues/273)) ([439524f](https://github.com/Kugelaudio/KugelAudio/commit/439524f11f74bc251a58ddaa0015c90b49794ddc))
+* **tts:** add chunk_length_schedule and auto_mode for server-side auto-chunking ([11ae4f0](https://github.com/Kugelaudio/KugelAudio/commit/11ae4f025a7df22bf0876e6e99e0b7da9d3f3703))
+* **tts:** add keepalive ping interval configuration for WebSocket connections ([8dbe9ff](https://github.com/Kugelaudio/KugelAudio/commit/8dbe9ff7059d3b66c90e452f6d2fc029a73931db))
+* **tts:** add playback speed control parameter to API ([e039978](https://github.com/Kugelaudio/KugelAudio/commit/e0399780ff896400d64d3a18ae3525cf800b544c))
+* **tts:** German digit-chain splitter + CFG aux-slot leak fix ([#324](https://github.com/Kugelaudio/KugelAudio/issues/324)) ([46d9943](https://github.com/Kugelaudio/KugelAudio/commit/46d9943f6a2a090a7db684786d8b43c988f41fba))
+
+### Bug Fixes
+
+* **java-sdk:** handle session_closed/chunk_complete in StreamingSession; add chunking strategy benchmark ([52fc476](https://github.com/Kugelaudio/KugelAudio/commit/52fc476ec6c3ae13d6da4229bd05b1bf4c12e165))
+* **python-sdk,js-sdk,java-sdk:** update regional endpoints ([#660](https://github.com/Kugelaudio/KugelAudio/issues/660)) ([b9a32c0](https://github.com/Kugelaudio/KugelAudio/commit/b9a32c09813c3e9de34a9d0a84ed0e024e1fe158))
+* **sdks,ci:** unblock Deploy:SDKs pipeline (stale repo URLs + dry_run default) ([#637](https://github.com/Kugelaudio/KugelAudio/issues/637)) ([a6d66bb](https://github.com/Kugelaudio/KugelAudio/commit/a6d66bb6117d7f48434dbb1324730c0c290c63e5)), closes [#273](https://github.com/Kugelaudio/KugelAudio/issues/273) [#273](https://github.com/Kugelaudio/KugelAudio/issues/273)
+* **tts,python-sdk,js-sdk,java-sdk:** keep WebSocket alive across streaming sessions ([#253](https://github.com/Kugelaudio/KugelAudio/issues/253)) ([2e22cc1](https://github.com/Kugelaudio/KugelAudio/commit/2e22cc1378e82e55c7889907318623da48515861))
+* **tts,python-sdk,js-sdk,java-sdk:** remove redundant is_final signal from multi-context protocol ([#279](https://github.com/Kugelaudio/KugelAudio/issues/279)) ([3ee0bfa](https://github.com/Kugelaudio/KugelAudio/commit/3ee0bfab5867567280ad5cb4a8f70631574cbbf8))
+
+### Code Refactoring
+
+* **ci:** use semantic-release-monorepo for path-based SDK commit filtering ([d161c5c](https://github.com/Kugelaudio/KugelAudio/commit/d161c5cf402d240ce421095833af7b8dfc8a9127))
+
+### Reverts
+
+* undo accidental merge of PR [#723](https://github.com/Kugelaudio/KugelAudio/issues/723) ([e8eff2e](https://github.com/Kugelaudio/KugelAudio/commit/e8eff2e86c76b893262782ff6ae763ed405396ce))
+
 ## [1.0.1](https://github.com/kajode/KugelAudio/compare/java-sdk-v1.0.0...java-sdk-v1.0.1) (2026-03-01)
 
 
@@ -240,11 +326,11 @@
 * **tts-demo:** add auto-detect language option and improve UI indicators ([670caaa](https://github.com/kajode/KugelAudio/commit/670caaad4fc8184934ee68475cced1e0dbbf6ba3))
 * **tts/bench,web:** add RTF benchmark mode and self-hosted license management UI ([2812ae8](https://github.com/kajode/KugelAudio/commit/2812ae81ad7f39bf60255714be4325d2be2aa7a8))
 * **tts/consistency:** update default init_timestep to 999 and add v37-v44 configs ([c30de24](https://github.com/kajode/KugelAudio/commit/c30de24a70c41ffc5fe3710da1d683dd3dbc38e9)), closes [hi#noise](https://github.com/hi/issues/noise)
-* **tts/data:** add language detection, metadata backfill, dataset splitting utilities and SLURM jobs ([0856a9f](https://github.com/kajode/KugelAudio/commit/0856a9f0d19bcac292e94ea49efd09e3423b320b))
-* **tts/data:** add unified dataset format with conversion pipeline and SLURM jobs ([508f236](https://github.com/kajode/KugelAudio/commit/508f2363e20410c56137c426848da5f818152378))
-* **tts/data:** extend YouTube processing, unification CLI, and add SLURM batch jobs ([07e99ad](https://github.com/kajode/KugelAudio/commit/07e99ad573d88bc91740da601a423a0e043f1859))
+* **models/tts/data:** add language detection, metadata backfill, dataset splitting utilities and SLURM jobs ([0856a9f](https://github.com/kajode/KugelAudio/commit/0856a9f0d19bcac292e94ea49efd09e3423b320b))
+* **models/tts/data:** add unified dataset format with conversion pipeline and SLURM jobs ([508f236](https://github.com/kajode/KugelAudio/commit/508f2363e20410c56137c426848da5f818152378))
+* **models/tts/data:** extend YouTube processing, unification CLI, and add SLURM batch jobs ([07e99ad](https://github.com/kajode/KugelAudio/commit/07e99ad573d88bc91740da601a423a0e043f1859))
 * **tts/licensing:** add self-hosted licensing module with DRM, watermarking, and offline token support ([464b980](https://github.com/kajode/KugelAudio/commit/464b980e59a7d4599fd63a6104325cafb1be772b))
-* **tts/scripts:** add unified distillation training script and SLURM job ([a84a454](https://github.com/kajode/KugelAudio/commit/a84a454649e84b0ec4e02a3cdc4e2f155977e222))
+* **models/tts/scripts:** add unified distillation training script and SLURM job ([a84a454](https://github.com/kajode/KugelAudio/commit/a84a454649e84b0ec4e02a3cdc4e2f155977e222))
 * **tts/selfhosted:** add self-hosted Docker image, weight protection build script, and CI workflow ([707bdf3](https://github.com/kajode/KugelAudio/commit/707bdf31939db2f9120d896f106ea10e9b6e1127))
 * **tts/serving:** integrate self-hosted mode into serving layer (auth bypass, watermarking, license guard, diagnostics) ([78fc629](https://github.com/kajode/KugelAudio/commit/78fc62918135a88e82f6263c2cce97ad1516a90a))
 * **tts:** add A8W8 static PTQ calibration and inference support ([ff234a6](https://github.com/kajode/KugelAudio/commit/ff234a65b4d2323959fe08eacf7e8d3f96befc53))

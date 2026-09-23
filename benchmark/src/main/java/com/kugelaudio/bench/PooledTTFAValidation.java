@@ -23,14 +23,15 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * Run:
  *   export JAVA_HOME=/opt/homebrew/opt/openjdk@17
- *   cd sdks/java/benchmark
+ *   cd packages/public/java-sdk/benchmark
  *   mvn compile exec:java \
  *       -Dexec.mainClass=com.kugelaudio.bench.PooledTTFAValidation \
  *       -Dexec.args="<api_key>"
  */
 public class PooledTTFAValidation {
 
-    private static final int VOICE_ID = 480;
+    private static final String MODEL_ID = "kugel-3";
+    private static final int VOICE_ID = 1071;
     private static final String[] TEXTS = {
         "Hallo, das ist ein kurzer Test.",
         "Der schnelle braune Fuchs springt über den faulen Hund.",
@@ -42,7 +43,7 @@ public class PooledTTFAValidation {
     public static void main(String[] args) throws Exception {
         String apiKey = args.length > 0 ? args[0] : System.getenv("API_KEY");
         if (apiKey == null || apiKey.isBlank()) {
-            System.err.println("Usage: PooledTTFAValidation <api_key>   (or set API_KEY env)");
+            System.err.println("Usage: PooledTTFAValidation <api_key> [api_url]   (or set API_KEY / API_URL env; API_URL defaults to https://api.kugelaudio.com)");
             System.exit(1);
         }
         String apiUrl = args.length > 1 ? args[1] : System.getenv("API_URL");
@@ -56,7 +57,7 @@ public class PooledTTFAValidation {
         System.out.println("║   KugelAudio Pooled TTFA Validation Benchmark           ║");
         System.out.println("╚══════════════════════════════════════════════════════════╝");
         System.out.println("  Server : " + apiUrl);
-        System.out.println("  Model  : kugel-1-turbo");
+        System.out.println("  Model  : " + MODEL_ID);
         System.out.println("  Voice  : " + VOICE_ID);
         System.out.println("  Output : " + outDir.toAbsolutePath());
         System.out.println();
@@ -142,7 +143,7 @@ public class PooledTTFAValidation {
 
         client.tts().stream(
             GenerateRequest.builder(text)
-                .modelId("kugel-1-turbo")
+                .modelId(MODEL_ID)
                 .voiceId(VOICE_ID)
                 .language("de")
                 .build(),
@@ -198,7 +199,7 @@ public class PooledTTFAValidation {
         AtomicInteger chunks = new AtomicInteger();
         client.tts().stream(
             GenerateRequest.builder("Aufwärmphase.")
-                .modelId("kugel-1-turbo").voiceId(VOICE_ID).language("de").build(),
+                .modelId(MODEL_ID).voiceId(VOICE_ID).language("de").build(),
             new StreamCallbacks() {
                 @Override public void onChunk(AudioChunk chunk) {
                     first.compareAndSet(0, System.nanoTime());
