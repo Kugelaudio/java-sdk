@@ -1,3 +1,5 @@
+## [kugelaudio-java-sdk-v3.1.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v3.0.1...java-sdk-v3.1.0) (2026-09-23)
+
 ## [kugelaudio-java-sdk-v3.0.1](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v3.0.0...java-sdk-v3.0.1) (2026-09-22)
 
 ## [kugelaudio-java-sdk-v3.0.0](https://github.com/Kugelaudio/KugelAudio/compare/java-sdk-v2.5.0...java-sdk-v3.0.0) (2026-09-21)

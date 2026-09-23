@@ -5,7 +5,7 @@
 
     <groupId>com.kugelaudio</groupId>
     <artifactId>kugelaudio</artifactId>
-    <version>3.0.1</version>
+    <version>3.1.0</version>
     <packaging>jar</packaging>
 
     <name>KugelAudio Java SDK</name>
