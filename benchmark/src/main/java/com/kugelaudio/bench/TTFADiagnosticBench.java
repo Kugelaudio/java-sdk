@@ -25,7 +25,7 @@ public class TTFADiagnosticBench {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String BASE_URL = "https://api.kugelaudio.com";
-    private static final String MODEL_ID = "kugel-3";
+    private static final String MODEL_ID = "kugel-3.5";
     private static final int VOICE_ID = 1071;
 
     public static void main(String[] args) throws Exception {

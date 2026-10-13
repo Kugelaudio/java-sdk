@@ -60,7 +60,7 @@ KugelAudio client = new KugelAudio(KugelAudioOptions.builder("your_api_key").bui
 
 AudioResponse audio = client.tts().generate(
     GenerateRequest.builder("Hello, world!")
-        .modelId("kugel-3")
+        .modelId("kugel-3.5")
         .voiceId(1071)
         .language("en")   // skip auto-detection (~150ms) when you know the language
         .build()
@@ -73,7 +73,7 @@ The client opens its WebSocket in the background on construction, so the
 handshake is off the first request's hot path. `client.connect()` blocks until
 it is ready; `KugelAudio.createConnected(options)` does both.
 
-[`kugel-3`](https://docs.kugelaudio.com/models) is the current model; legacy IDs
+[`kugel-3.5`](https://docs.kugelaudio.com/models) is the current model; legacy IDs
 (`kugel-1-turbo`, `kugel-2.5`, …) are still accepted.
 
 ## Streaming

@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class PooledTTFAValidation {
 
-    private static final String MODEL_ID = "kugel-3";
+    private static final String MODEL_ID = "kugel-3.5";
     private static final int VOICE_ID = 1071;
     private static final String[] TEXTS = {
         "Hallo, das ist ein kurzer Test.",

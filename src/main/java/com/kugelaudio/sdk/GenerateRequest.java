@@ -8,7 +8,7 @@ import java.util.List;
  * <pre>{@code
  * var request = GenerateRequest.builder("Hello, world!")
  *     .voiceId(123)
- *     .modelId("kugel-3")
+ *     .modelId("kugel-3.5")
  *     .sampleRate(24000)
  *     .build();
  * }</pre>
@@ -68,7 +68,7 @@ public final class GenerateRequest {
 
     public static final class Builder {
         private final String text;
-        private String modelId = "kugel-3";
+        private String modelId = "kugel-3.5";
         private Integer voiceId;
         private Double cfgScale = 2.0;
         private Double temperature;

@@ -15,7 +15,7 @@ import java.util.List;
  * // Default — balanced TTFA vs. prosody quality
  * var config = StreamConfig.builder()
  *     .voiceId(123)
- *     .modelId("kugel-3")
+ *     .modelId("kugel-3.5")
  *     .build();
  *
  * // Optimise for low latency (ElevenLabs auto_mode equivalent)
@@ -85,7 +85,7 @@ public final class StreamConfig {
 
     public static final class Builder {
         private Integer voiceId;
-        private String modelId = "kugel-3";
+        private String modelId = "kugel-3.5";
         private Double cfgScale = 2.0;
         private Double temperature;
         private Integer maxNewTokens = 2048;
