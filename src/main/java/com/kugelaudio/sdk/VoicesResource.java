@@ -60,8 +60,12 @@ public final class VoicesResource {
      * @param language Language code (e.g. "en", "de"), sent as the voice's only supported language;
      *                 {@code null} leaves the server default ({@code ["en"]})
      * @param files    Reference audio file paths
+     * @param speakerConsent {@code true} to confirm that you are the speaker of the recordings or
+     *                 that you have the speaker's permission to create a synthetic voice from them.
+     *                 Required: the API rejects the request with {@code SPEAKER_CONSENT_REQUIRED}
+     *                 otherwise and records the confirmation with your account
      */
-    public VoiceDetail create(String name, String sex, String language, List<Path> files) {
+    public VoiceDetail create(String name, String sex, String language, List<Path> files, boolean speakerConsent) {
         String boundary = UUID.randomUUID().toString();
         try {
             ByteArrayOutputStream body = new ByteArrayOutputStream();
@@ -71,6 +75,7 @@ public final class VoicesResource {
             if (language != null) {
                 metadata.put("supported_languages", List.of(language));
             }
+            metadata.put("speaker_consent", speakerConsent);
 
             writeMultipartField(body, boundary, "metadata", null, "application/json", MAPPER.writeValueAsBytes(metadata));
 
@@ -108,13 +113,19 @@ public final class VoicesResource {
      * @param voiceId       Voice ID
      * @param file          Audio file path
      * @param referenceText Optional transcript of the reference audio
+     * @param speakerConsent {@code true} to confirm that you are the speaker of this recording or
+     *                      that you have the speaker's permission to create a synthetic voice from
+     *                      it. Required: the API rejects the upload with
+     *                      {@code SPEAKER_CONSENT_REQUIRED} otherwise
      */
-    public VoiceReference addReference(int voiceId, Path file, String referenceText) {
+    public VoiceReference addReference(int voiceId, Path file, String referenceText, boolean speakerConsent) {
         String boundary = UUID.randomUUID().toString();
         try {
             ByteArrayOutputStream body = new ByteArrayOutputStream();
             byte[] fileBytes = Files.readAllBytes(file);
             writeMultipartField(body, boundary, "file", file.getFileName().toString(), "audio/wav", fileBytes);
+            writeMultipartField(body, boundary, "speaker_consent", null, "text/plain",
+                    String.valueOf(speakerConsent).getBytes(StandardCharsets.UTF_8));
             if (referenceText != null) {
                 writeMultipartField(body, boundary, "reference_text", null, "text/plain", referenceText.getBytes(StandardCharsets.UTF_8));
             }

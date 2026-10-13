@@ -73,11 +73,11 @@ class VoicesResourceTest {
         start("{\"id\": 1, \"voice_id\": 1, \"name\": \"Anna \\\"A\\\"\"}");
         Path wav = Files.write(tmp.resolve("ref.wav"), new byte[] {1, 2, 3});
 
-        voices.create("Anna \"A\"", "female", "de", List.of(wav));
+        voices.create("Anna \"A\"", "female", "de", List.of(wav), true);
 
         String body = requestBody.get();
         assertEquals("/v1/voices", requestPath.get());
-        assertTrue(body.contains("{\"name\":\"Anna \\\"A\\\"\",\"sex\":\"female\",\"supported_languages\":[\"de\"]}"),
+        assertTrue(body.contains("{\"name\":\"Anna \\\"A\\\"\",\"sex\":\"female\",\"supported_languages\":[\"de\"],\"speaker_consent\":true}"),
                 "metadata part was: " + body);
         assertFalse(body.contains("\"language\""), "legacy 'language' key must not be sent: " + body);
         assertTrue(body.contains("filename=\"ref.wav\""));
@@ -87,10 +87,33 @@ class VoicesResourceTest {
     void createWithoutLanguageOmitsSupportedLanguages() throws IOException {
         start("{\"id\": 1, \"voice_id\": 1, \"name\": \"Anna\"}");
 
-        voices.create("Anna", "female", null, List.of());
+        voices.create("Anna", "female", null, List.of(), true);
 
         String body = requestBody.get();
-        assertTrue(body.contains("{\"name\":\"Anna\",\"sex\":\"female\"}"), "metadata part was: " + body);
+        assertTrue(body.contains("{\"name\":\"Anna\",\"sex\":\"female\",\"speaker_consent\":true}"), "metadata part was: " + body);
         assertFalse(body.contains("supported_languages"));
+    }
+
+    @Test
+    void createSendsAFalseSpeakerConsentForTheServerToRefuse() throws IOException {
+        start("{\"id\": 1, \"voice_id\": 1, \"name\": \"Anna\"}");
+
+        voices.create("Anna", "female", null, List.of(), false);
+
+        assertTrue(requestBody.get().contains("\"speaker_consent\":false"), "metadata part was: " + requestBody.get());
+    }
+
+    @Test
+    void addReferenceSendsSpeakerConsentAsFormField(@TempDir Path tmp) throws IOException {
+        start("{\"id\": 3, \"voice_id\": 7, \"name\": \"ref.wav\"}");
+        Path wav = Files.write(tmp.resolve("ref.wav"), new byte[] {1, 2, 3});
+
+        voices.addReference(7, wav, "Hallo", true);
+
+        String body = requestBody.get();
+        assertEquals("/v1/voices/7/references", requestPath.get());
+        assertTrue(body.contains("name=\"speaker_consent\"\r\nContent-Type: text/plain\r\n\r\ntrue\r\n"),
+                "form was: " + body);
+        assertTrue(body.contains("name=\"reference_text\""));
     }
 }
