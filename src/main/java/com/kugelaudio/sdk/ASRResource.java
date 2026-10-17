@@ -8,9 +8,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
-/** Speech-to-text uploads through public KugelAudio ingress. */
+/**
+ * Speech-to-text uploads through public KugelAudio ingress.
+ *
+ * <p>{@code model} is the speech-to-text model ID, sent as given; pass
+ * {@code null} to leave it out and use the API's default model.
+ */
 public final class ASRResource {
-    public static final String MODEL_ID = "luchs-1";
     private final HttpHelper http;
 
     ASRResource(HttpHelper http) {
@@ -18,7 +22,7 @@ public final class ASRResource {
     }
 
     public TranscriptionResponse transcribe(byte[] audio) {
-        return transcribe(audio, "audio.wav", "audio/wav", null, MODEL_ID);
+        return transcribe(audio, "audio.wav", "audio/wav", null, null);
     }
 
     public TranscriptionResponse transcribe(
@@ -46,9 +50,6 @@ public final class ASRResource {
         if (audio == null || audio.length == 0) {
             throw new ValidationException("ASR audio must not be empty");
         }
-        if (!MODEL_ID.equals(model)) {
-            throw new ValidationException("Unsupported ASR model; use " + MODEL_ID);
-        }
         if (boostedPhrases == null) {
             throw new ValidationException("boostedPhrases must not be null; pass an empty list");
         }
@@ -64,7 +65,10 @@ public final class ASRResource {
         }
     }
 
-    /** The multipart body: one {@code boosted_phrases} field per phrase. */
+    /**
+     * The multipart body: a {@code model} field only when a model is given, and
+     * one {@code boosted_phrases} field per phrase.
+     */
     static byte[] encodeUpload(
             String boundary,
             byte[] audio,
@@ -75,7 +79,9 @@ public final class ASRResource {
             List<String> boostedPhrases) throws IOException {
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         writeField(body, boundary, "file", filename, contentType, audio);
-        writeField(body, boundary, "model", null, "text/plain", model.getBytes(StandardCharsets.UTF_8));
+        if (model != null) {
+            writeField(body, boundary, "model", null, "text/plain", model.getBytes(StandardCharsets.UTF_8));
+        }
         if (language != null) {
             writeField(body, boundary, "language", null, "text/plain", language.getBytes(StandardCharsets.UTF_8));
         }

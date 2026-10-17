@@ -13,7 +13,7 @@ class TranscriptionResponseTest {
     void parsesOpenAiTextAndSpellingAlternatives() throws Exception {
         String json = """
                 {"text":"Müller","transcript":"Müller","language":"de",
-                 "duration_s":1.5,"model":"luchs-1",
+                 "duration_s":1.5,"model":"test-model",
                  "model_revision":"7278e1e70fe206f11671096ffdd38061171dd6e5","word_alternatives":[
                    {"raw_word_index":0,"word":"Müller","alternatives":[
                      {"spelling":"Mueller","probability":0.03}]}]}
@@ -23,7 +23,7 @@ class TranscriptionResponseTest {
                 json, TranscriptionResponse.class);
 
         assertEquals("Müller", result.getText());
-        assertEquals("luchs-1", result.getModel());
+        assertEquals("test-model", result.getModel());
         assertEquals("7278e1e70fe206f11671096ffdd38061171dd6e5", result.getModelRevision());
         assertEquals("Mueller", result.getWordAlternatives().get(0)
                 .alternatives().get(0).spelling());
@@ -35,7 +35,7 @@ class TranscriptionResponseTest {
         StreamingTranscriptionResult revision = mapper.readValue("""
                 {"type":"alternatives","partial_text":"Ich möchte einen Flug buchen.",
                  "is_final":true,"revises_final":true,"language":"German",
-                 "model":"luchs-1","word_alternatives":[]}
+                 "model":"test-model","word_alternatives":[]}
                 """, StreamingTranscriptionResult.class);
         StreamingTranscriptionResult partial = mapper.readValue("""
                 {"type":"partial","partial_text":"Ich möchte","is_final":false,
