@@ -23,7 +23,15 @@ class ASRResourceTest {
 
     private static String upload(List<String> phrases) throws IOException {
         return new String(
-                ASRResource.encodeUpload("b", AUDIO, "audio.wav", "audio/wav", null, "test-model", phrases),
+                ASRResource.encodeUpload("b", AUDIO, "audio.wav", "audio/wav", null, "test-model", phrases,
+                        null, null),
+                StandardCharsets.UTF_8);
+    }
+
+    private static String upload(Long projectId, List<Integer> dictionaryIds) throws IOException {
+        return new String(
+                ASRResource.encodeUpload("b", AUDIO, "audio.wav", "audio/wav", null, "test-model", List.of(),
+                        projectId, dictionaryIds),
                 StandardCharsets.UTF_8);
     }
 
@@ -68,6 +76,36 @@ class ASRResourceTest {
     @Test
     void uploadWithoutPhrasesHasNoPhraseField() throws IOException {
         assertFalse(upload(List.of()).contains("boosted_phrases"));
+    }
+
+    @Test
+    void uploadCarriesProjectAndOneFormFieldPerDictionaryId() throws IOException {
+        String body = upload(42L, List.of(7, 9));
+
+        assertTrue(body.contains("name=\"project_id\"\r\nContent-Type: text/plain\r\n\r\n42\r\n"), body);
+        assertEquals(3, body.split("name=\"dictionary_ids\"", -1).length);
+        assertTrue(body.contains("name=\"dictionary_ids\"\r\nContent-Type: text/plain\r\n\r\n7\r\n"), body);
+        assertTrue(body.contains("name=\"dictionary_ids\"\r\nContent-Type: text/plain\r\n\r\n9\r\n"), body);
+    }
+
+    @Test
+    void uploadWithoutSelectionHasNoDictionaryFields() throws IOException {
+        String body = upload(null, null);
+
+        assertFalse(body.contains("project_id"), body);
+        assertFalse(body.contains("dictionary_ids"), body);
+    }
+
+    @Test
+    void emptyDictionarySelectionSendsOneEmptyField() throws Exception {
+        // Repeated form fields cannot carry []; one empty dictionary_ids field
+        // is the multipart spelling of "no dictionaries". Dropping it would
+        // apply every active dictionary instead.
+        String body = bodySentBy(client -> client.asr().transcribe(
+                AUDIO, "audio.wav", "audio/wav", null, "test-model", List.of(), null, List.of()));
+
+        assertEquals(2, body.split("name=\"dictionary_ids\"", -1).length, body);
+        assertTrue(body.contains("name=\"dictionary_ids\"\r\nContent-Type: text/plain\r\n\r\n\r\n"), body);
     }
 
     @Test
