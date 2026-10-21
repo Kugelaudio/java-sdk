@@ -211,6 +211,6 @@ class ErrorsTest {
         if (before != null && !before.isBlank()) return;
         ValidationException ex = assertThrows(ValidationException.class, KugelAudio::fromEnv);
         assertTrue(ex.getMessage().contains("KUGELAUDIO_API_KEY"));
-        assertTrue(ex.getMessage().contains("https://app.kugelaudio.com/settings/api-keys"));
+        assertTrue(ex.getMessage().contains("https://www.kugelaudio.com/dashboard"));
     }
 }

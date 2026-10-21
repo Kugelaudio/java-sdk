@@ -8,7 +8,7 @@ public class AuthenticationException extends KugelAudioException {
 
     public static final String DEFAULT_MESSAGE =
             "KugelAudio rejected the API key. "
-                    + "Check it is current at https://app.kugelaudio.com/settings/api-keys.";
+                    + "Check it is current at https://www.kugelaudio.com/dashboard.";
 
     public AuthenticationException() {
         super(DEFAULT_MESSAGE, 401, "UNAUTHORIZED", null, null, null);

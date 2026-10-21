@@ -42,7 +42,7 @@ public final class Errors {
     public static final int WS_CLOSE_MODEL_UNAVAILABLE = 4500;
 
     private static final String API_KEYS_URL =
-            "https://app.kugelaudio.com/settings/api-keys";
+            "https://www.kugelaudio.com/dashboard";
 
     private Errors() {}
 

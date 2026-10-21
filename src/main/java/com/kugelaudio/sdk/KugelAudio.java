@@ -97,7 +97,7 @@ public final class KugelAudio implements AutoCloseable {
                     "KugelAudio API key is missing. Set the KUGELAUDIO_API_KEY "
                             + "environment variable or build options with "
                             + "KugelAudioOptions.builder(apiKey). "
-                            + "Get a key at https://app.kugelaudio.com/settings/api-keys.");
+                            + "Get a key at https://www.kugelaudio.com/dashboard.");
         }
         return new KugelAudio(KugelAudioOptions.builder(apiKey).build());
     }

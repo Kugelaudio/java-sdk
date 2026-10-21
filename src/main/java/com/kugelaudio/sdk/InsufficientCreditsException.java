@@ -8,7 +8,7 @@ public class InsufficientCreditsException extends KugelAudioException {
 
     public static final String DEFAULT_MESSAGE =
             "Your KugelAudio account is out of credits. Top up at "
-                    + "https://app.kugelaudio.com/billing.";
+                    + "https://www.kugelaudio.com/dashboard.";
 
     public InsufficientCreditsException() {
         super(DEFAULT_MESSAGE, 402, "INSUFFICIENT_CREDITS", null, null, null);
