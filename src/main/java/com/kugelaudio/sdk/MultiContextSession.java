@@ -84,7 +84,8 @@ public final class MultiContextSession implements AutoCloseable {
         Diagnostics.Operation op = newOperation().stage(Diagnostics.STAGE_HANDSHAKE);
         try {
             MultiContextListener listener = new MultiContextListener();
-            ws = connector.connect(httpClient, URI.create(wsUrl), listener, options.getTimeout());
+            ws = connector.connect(httpClient, URI.create(wsUrl), listener, options.getTimeout(),
+                    WsUrlBuilder.authHeaders(options));
             op.success();
         } catch (Exception e) {
             KugelAudioException typed = Errors.classifyWsHandshake(e);

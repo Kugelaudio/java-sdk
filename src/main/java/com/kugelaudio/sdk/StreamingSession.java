@@ -190,7 +190,8 @@ public final class StreamingSession implements AutoCloseable {
                 .startOperation(Diagnostics.OP_STREAM_SESSION, Diagnostics.TRANSPORT_WEBSOCKET)
                 .stage(Diagnostics.STAGE_HANDSHAKE);
         try {
-            ws = connector.connect(httpClient, URI.create(wsUrl), new SessionListener(), options.getTimeout());
+            ws = connector.connect(httpClient, URI.create(wsUrl), new SessionListener(), options.getTimeout(),
+                    WsUrlBuilder.authHeaders(options));
             op.success();
         } catch (Exception e) {
             KugelAudioException typed = Errors.classifyWsHandshake(e);

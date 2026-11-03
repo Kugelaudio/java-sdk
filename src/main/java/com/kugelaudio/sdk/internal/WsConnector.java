@@ -5,6 +5,7 @@ import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,14 +15,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Every handshake carries the {@link SdkMetadata#sdkHeaders() SDK identity
  * headers}, so ingress observability sees the same identity on WebSocket
- * upgrades as it does on HTTP requests.
+ * upgrades as it does on HTTP requests, plus the credential headers
+ * {@link WsUrlBuilder#authHeaders} gives (the master key).
  */
 public final class WsConnector {
     private final Set<CompletableFuture<WebSocket>> pending = new HashSet<>();
     private boolean closed;
     private WebSocket current;
 
-    public WebSocket connect(HttpClient client, URI uri, WebSocket.Listener listener, Duration timeout)
+    public WebSocket connect(HttpClient client, URI uri, WebSocket.Listener listener, Duration timeout,
+                             Map<String, String> authHeaders)
             throws InterruptedException, ExecutionException, TimeoutException {
         long deadline = System.nanoTime() + timeout.toNanos();
         CompletableFuture<WebSocket> future;
@@ -30,6 +33,7 @@ public final class WsConnector {
             if (closed) throw new IllegalStateException("WebSocket owner is closed");
             WebSocket.Builder builder = client.newWebSocketBuilder().connectTimeout(timeout);
             SdkMetadata.sdkHeaders().forEach(builder::header);
+            authHeaders.forEach(builder::header);
             future = builder.buildAsync(uri, listener);
             pending.add(future);
         }

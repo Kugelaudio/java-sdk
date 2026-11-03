@@ -4,9 +4,14 @@ import com.kugelaudio.sdk.KugelAudioOptions;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 /**
- * Builds WebSocket URLs with proper auth query parameters.
+ * Builds WebSocket URLs and the credential each upgrade carries.
+ *
+ * <p>An API key or a token rides the query string ({@code api_key=} /
+ * {@code token=}); a master key is sent only as an {@code Authorization}
+ * header ({@link #authHeaders}), so it never appears in a URL.
  */
 public final class WsUrlBuilder {
 
@@ -41,24 +46,39 @@ public final class WsUrlBuilder {
         wsUrl = wsUrl.replaceAll("/+$", "") + wsPath;
 
         String authParam = switch (options.getAuthMode()) {
-            case MASTER_KEY -> "master_key";
+            case MASTER_KEY -> null; // a header, see authHeaders
             case TOKEN -> "token";
             case API_KEY -> "api_key";
         };
 
-        String encoded = URLEncoder.encode(options.getApiKey(), StandardCharsets.UTF_8);
         StringBuilder sb = new StringBuilder(wsUrl);
-        sb.append("?").append(authParam).append("=").append(encoded);
+        if (authParam != null) {
+            String encoded = URLEncoder.encode(options.getApiKey(), StandardCharsets.UTF_8);
+            appendParam(sb, authParam, encoded);
+        }
 
         if (options.getOrgId() != null) {
-            sb.append("&org_id=").append(options.getOrgId());
+            appendParam(sb, "org_id", String.valueOf(options.getOrgId()));
         }
 
         if (initialMessage != null) {
-            sb.append("&initial_message=").append(
+            appendParam(sb, "initial_message", 
                     URLEncoder.encode(initialMessage, StandardCharsets.UTF_8));
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Upgrade headers that carry the credential: {@code Authorization: Bearer}
+     * for a master key, none for the modes that ride the query string.
+     */
+    public static Map<String, String> authHeaders(KugelAudioOptions options) {
+        if (options.getAuthMode() != KugelAudioOptions.AuthMode.MASTER_KEY) return Map.of();
+        return Map.of("Authorization", "Bearer " + options.getApiKey());
+    }
+
+    private static void appendParam(StringBuilder sb, String name, String encodedValue) {
+        sb.append(sb.indexOf("?") < 0 ? '?' : '&').append(name).append('=').append(encodedValue);
     }
 }

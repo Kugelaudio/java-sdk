@@ -171,7 +171,8 @@ public final class TTSResource {
                 String wsUrl = WsUrlBuilder.build(options, "/ws/tts", initialMsg);
                 StreamListener listener = new StreamListener(callbacks, op);
                 WebSocket ws = connector.connect(
-                        httpClient, URI.create(wsUrl), listener, options.getTimeout());
+                        httpClient, URI.create(wsUrl), listener, options.getTimeout(),
+                        WsUrlBuilder.authHeaders(options));
                 op.stage(Diagnostics.STAGE_AWAITING_FIRST_AUDIO);
                 if (initialMsg == null) {
                     ws.sendText(payloadJson, true).join();
@@ -274,7 +275,8 @@ public final class TTSResource {
             DispatchListener dispatch = new DispatchListener();
             long remaining = deadline - System.nanoTime();
             if (remaining <= 0) throw new TimeoutException("Connection acquisition deadline expired");
-            ws = connector.connect(httpClient, URI.create(connectUrl), dispatch, Duration.ofNanos(remaining));
+            ws = connector.connect(httpClient, URI.create(connectUrl), dispatch, Duration.ofNanos(remaining),
+                    WsUrlBuilder.authHeaders(options));
             pooledConnection = ws;
             pooledUrl = baseWsUrl;
             pooledDispatch = dispatch;

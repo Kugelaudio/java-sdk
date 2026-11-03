@@ -18,13 +18,28 @@ class WsUrlBuilderTest {
     }
 
     @Test
-    void buildWithMasterKey() {
+    void masterKeyIsAHeaderNotAQueryParameter() {
         KugelAudioOptions options = KugelAudioOptions.builder("master-secret")
                 .masterKey()
+                .orgId(7)
                 .build();
-        String url = WsUrlBuilder.build(options, "/ws/tts");
+        String url = WsUrlBuilder.build(options, "/ws/tts", "{}");
 
-        assertTrue(url.contains("master_key=master-secret"));
+        assertFalse(url.contains("master-secret"));
+        assertTrue(url.endsWith("/ws/tts?org_id=7&initial_message=%7B%7D"));
+        assertEquals(java.util.Map.of("Authorization", "Bearer master-secret"), WsUrlBuilder.authHeaders(options));
+    }
+
+    @Test
+    void apiKeyAndTokenSendNoAuthHeaders() {
+        assertTrue(WsUrlBuilder.authHeaders(KugelAudioOptions.builder("k").build()).isEmpty());
+        assertTrue(WsUrlBuilder.authHeaders(KugelAudioOptions.builder("t").token().orgId(1).build()).isEmpty());
+    }
+
+    @Test
+    void masterKeyAloneLeavesAnUrlWithoutQuery() {
+        KugelAudioOptions options = KugelAudioOptions.builder("master-secret").masterKey().build();
+        assertTrue(WsUrlBuilder.build(options, "/ws/tts").endsWith("/ws/tts"));
     }
 
     @Test
