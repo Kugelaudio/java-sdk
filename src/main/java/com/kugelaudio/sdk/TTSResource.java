@@ -408,17 +408,7 @@ public final class TTSResource {
             }
 
             if (json.has("word_timestamps")) {
-                List<WordTimestamp> timestamps = new ArrayList<>();
-                for (JsonNode wt : json.get("word_timestamps")) {
-                    timestamps.add(new WordTimestamp(
-                            wt.path("word").asText(),
-                            wt.path("start_ms").asLong(),
-                            wt.path("end_ms").asLong(),
-                            wt.path("char_start").asInt(),
-                            wt.path("char_end").asInt(),
-                            wt.path("score").asDouble()
-                    ));
-                }
+                List<WordTimestamp> timestamps = WordTimestamp.listFromFrame(json);
                 handler.responseBuilder.addWordTimestamps(timestamps);
                 handler.callbacks.onWordTimestamps(timestamps);
             }
